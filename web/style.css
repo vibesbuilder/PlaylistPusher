@@ -127,7 +127,9 @@ textarea { width: 100%; resize: vertical; font-family: ui-monospace, Consolas, m
 .review-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .review-title h2 { margin: 0; }
 #review-target { margin: 6px 0 0; }
-.progress { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.progress-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.progress-row:not(:has(> :not([hidden]))) { display: none; }
+.progress { display: flex; align-items: center; gap: 12px; flex: 1 1 320px; flex-wrap: wrap; }
 .bar { flex: 1; height: 8px; background: var(--hover); border-radius: 99px; overflow: hidden; }
 .bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 10px; }

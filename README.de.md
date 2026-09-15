@@ -112,15 +112,27 @@ Leerzeilen und Zeilen mit `#` oder `//` am Anfang werden ignoriert. Dateien in U
 
 `http://127.0.0.1:8138/?demo` öffnen (oder den Demo-Link auf der Einrichtungsseite nutzen), um PlaylistPusher mit einem kleinen Beispielkatalog auszuprobieren. Die Demo greift nicht auf Spotify zu und ändert nichts.
 
+## Anfrage-Limits von Spotify
+
+Spotify begrenzt die Zahl der Anfragen für Apps im Development Mode. Das Limit teilen sich alle Development-Mode-Apps deines Spotify-Entwicklerkontos; Größe und Rücksetzzeitpunkt veröffentlicht Spotify nicht. PlaylistPusher sucht deshalb einen Eintrag nach dem anderen, verteilt die Anfragen und braucht nur ein bis zwei Suchen pro Eintrag.
+
+- **Suche abbrechen** stoppt die Suche sofort; die bisherigen Treffer bleiben erhalten.
+- Ist das Limit von Spotify erreicht, stoppt die Suche von selbst und behält ihre Treffer.
+- **Suche fortsetzen** macht jederzeit mit den übrigen Einträgen weiter (und wiederholt fehlgeschlagene Suchen).
+
 ## Fehlerbehebung
 
 | Problem | Lösung |
 |---|---|
 | *Port 8138 is already in use* | PlaylistPusher läuft schon in einem anderen Fenster – dieses schließen. Oder mit `--port 8139` starten und `http://127.0.0.1:8139/callback` zusätzlich als Redirect-URI in der Spotify-App eintragen. |
 | Spotify zeigt *INVALID_CLIENT: Invalid redirect URI* | Die Redirect-URI in der Spotify-App muss exakt `http://127.0.0.1:8138/callback` lauten. |
+| *Das Anfrage-Kontingent deiner Spotify-App ist aufgebraucht* | Das Anfrage-Limit von Spotify ist erreicht (siehe oben). Eine Weile warten, dann *Suche fortsetzen* klicken. |
+| *Spotify lehnt Anfragen ab, weil zu viele in kurzer Zeit gesendet wurden* | Eine Minute warten, dann *Suche fortsetzen* klicken. |
+| *Zugriff verweigert (403): Insufficient client scope* | Ab- und wieder anmelden und die aktuelle Version von PlaylistPusher verwenden. |
 | *Zugriff verweigert (403)* | Das Spotify-Konto in der Spotify-App unter *User Management* eintragen; der App-Besitzer braucht Premium. |
 | *Die Spotify-Sitzung ist abgelaufen* | Neu anmelden (Spotify verlangt das spätestens alle 6 Monate). Die Liste bleibt erhalten. |
-| Badge *nicht abspielbar* | Der Track ist im Land des Spotify-Kontos nicht verfügbar – besser eine Alternative wählen. |
+
+Fehlermeldungen nennen den Schritt, der fehlgeschlagen ist (z. B. *Suche: …* oder *Playlists laden: …*). Details zu fehlgeschlagenen Anfragen stehen zusätzlich in der Browser-Konsole (F12).
 
 ## Datenschutz
 

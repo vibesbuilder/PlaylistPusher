@@ -82,18 +82,44 @@ test('umlaut spellings and unplayable tracks', () => {
   assert.equal(best({ artist: 'Die Ärzte', title: 'Schrei nach Liebe' }, [blocked, aerzte]).t, aerzte);
 });
 
-test('search strategy: one good hit is enough, fallbacks only when needed', async () => {
+test('search strategy: one request per entry, at most one fallback', async () => {
   const falco = track('Rock Me Amadeus', ['Falco']);
   const queries = [];
-  const search = async (q) => { queries.push(q); return q.startsWith('track:') ? [falco] : []; };
-  const candidates = await findCandidates({ artist: 'Falco', title: 'Rock Me Amadeus' }, { search });
+  const candidates = await findCandidates({ artist: 'Falco', title: 'Rock Me Amadeus' }, { search: async (q) => { queries.push(q); return [falco]; } });
   assert.equal(candidates[0].track, falco);
-  assert.deepEqual(queries, ['track:Rock Me Amadeus artist:Falco']);
+  assert.deepEqual(queries, ['Falco Rock Me Amadeus']);
+
+  const acdc = track('Back In Black', ['AC/DC']);
+  const swappedQueries = [];
+  const swapped = await findCandidates({ artist: 'Back In Black', title: 'AC/DC' }, { search: async (q) => { swappedQueries.push(q); return [acdc]; } });
+  assert.ok(swapped[0].swapped && swapped[0].score >= SCORE_SURE);
+  assert.equal(swappedQueries.length, 1);
+
+  const titanium = track('Titanium (feat. Sia)', ['David Guetta', 'Sia']);
+  const noisy = [];
+  const found = await findCandidates(
+    { artist: 'David Guetta feat. Sia', title: 'Titanium (Radio Edit)' },
+    { search: async (q) => { noisy.push(q); return q === 'Titanium David Guetta' ? [titanium] : []; } },
+  );
+  assert.equal(found[0].track, titanium);
+  assert.deepEqual(noisy, ['David Guetta feat. Sia Titanium (Radio Edit)', 'Titanium David Guetta']);
 
   const missing = [];
   const none = await findCandidates({ artist: 'Unknown', title: 'Does Not Exist' }, { search: async (q) => { missing.push(q); return []; } });
   assert.equal(none.length, 0);
-  assert.equal(missing.length, 4); // field search, free text, swapped, title only
+  assert.deepEqual(missing, ['Unknown Does Not Exist', 'Does Not Exist']);
+});
+
+test('search strategy: cancellation, quota and access errors stop immediately', async () => {
+  for (const error of [
+    Object.assign(new Error('cancelled'), { name: 'AbortError' }),
+    Object.assign(new Error('quota used up'), { fatal: true }),
+  ]) {
+    let calls = 0;
+    const search = async () => { calls++; throw error; };
+    await assert.rejects(findCandidates({ artist: 'Wanda', title: 'Bologna' }, { search }), error);
+    assert.equal(calls, 1);
+  }
 });
 
 test('search strategy: link and ISRC', async () => {

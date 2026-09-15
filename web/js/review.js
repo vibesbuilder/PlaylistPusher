@@ -29,9 +29,10 @@ export function slimTrack(track) {
 const selectedCand = (row) => row.candidates.find((c) => c.track.id === row.selectedId) || null;
 export const selectedTrack = (row) => selectedCand(row)?.track || null;
 export const touch = (row) => { row.rev = (row.rev || 0) + 1; };
+const notSearched = (row) => row.status === 'pending' || row.status === 'searching';
 
 export function rowClass(row) {
-  if (row.status === 'pending' || row.status === 'searching') return 'pending';
+  if (notSearched(row)) return 'pending';
   const c = selectedCand(row);
   if (!c) return 'none';
   if (row.manual || c.score >= SCORE_SURE) return 'sure';
@@ -85,7 +86,7 @@ export function renderAll() {
 
 /** Updates duplicates, changed rows, filters and the summary. */
 export function refresh() {
-  const { session } = ctx.state;
+  const { session, importing, matching } = ctx.state;
   computeDuplicates();
   const list = $('#rows');
   const filter = session.filter || 'all';
@@ -99,7 +100,7 @@ export function refresh() {
       list.append(el);
       elements.set(row.id, el);
     }
-    const sig = `${row.rev}|${row.dup}|${session.skipDuplicates}|${ctx.state.importing}|${getLanguage()}`;
+    const sig = `${row.rev}|${row.dup}|${session.skipDuplicates}|${importing}|${matching}|${getLanguage()}`;
     if (signatures.get(row.id) !== sig) {
       // Keep what the user typed into the search/link fields
       const typed = { q: el.querySelector('input[name=q]')?.value, link: el.querySelector('input[name=link]')?.value };
@@ -132,8 +133,9 @@ function updateSummary() {
 
   const count = importRows().length;
   const imported = session.rows.filter((r) => r.imported).length;
+  const pending = session.rows.filter(notSearched).length;
   const needsName = !session.target.id && !session.target.name;
-  let info = t('review.footer', { count, total: session.rows.length, imported });
+  let info = t('review.footer', { count, total: session.rows.length, imported, pending });
   if (matching) info = t('review.searching');
   else if (needsName) info = t('review.needsName');
   $('#footer-info').textContent = info;
@@ -141,6 +143,13 @@ function updateSummary() {
   const button = $('#btn-import');
   button.disabled = matching || importing || count === 0 || needsName;
   button.textContent = importing ? t('review.importing') : t('review.importButton', { count });
+
+  // "Resume" also retries searches that failed because of Spotify (quota, connection)
+  const retryable = pending + session.rows.filter((r) => r.status === 'error' && !r.entry.error).length;
+  $('#btn-cancel').hidden = !matching;
+  const resume = $('#btn-resume');
+  resume.hidden = matching || importing || retryable === 0;
+  resume.textContent = t('review.resume', { n: retryable });
 }
 
 function itemClasses(row) {
@@ -150,7 +159,8 @@ function itemClasses(row) {
 
 function rowHtml(row) {
   const track = selectedTrack(row);
-  const busy = row.status === 'pending' || row.status === 'searching';
+  // Entries that were not searched yet can be changed manually as long as no search is running
+  const busy = row.status === 'searching' || (row.status === 'pending' && ctx.state.matching);
   const locked = busy || row.imported || ctx.state.importing;
   return `<div class="item-line">
     <input type="checkbox" data-act="include" aria-label="${esc(t('row.include', { n: row.id + 1 }))}" ${row.include && track ? 'checked' : ''} ${locked || !track ? 'disabled' : ''}>
@@ -173,7 +183,7 @@ function sourceInfo(row) {
 }
 
 function matchInfo(row, track) {
-  if (row.status === 'pending') return `<div class="searching">${esc(t('row.waiting'))}</div>`;
+  if (row.status === 'pending') return `<div class="searching">${esc(t(ctx.state.matching ? 'row.waiting' : 'row.notSearched'))}</div>`;
   if (row.status === 'searching') return `<div class="searching"><span class="spinner"></span>${esc(t('row.searching'))}</div>`;
   if (row.status === 'error') return `<div class="muted">⚠ ${esc(row.entry.error ? t(`parse.${row.entry.error}`) : row.error)}</div>`;
   if (!track) return `<div class="muted">${esc(t(row.candidates.length ? 'row.noSelection' : 'row.noMatch'))}</div>`;
@@ -248,7 +258,8 @@ function onChange(e) {
   const row = rowOf(e.target);
   if (!row) return;
   if (e.target.dataset.act === 'include') update(row, { include: e.target.checked });
-  if (e.target.dataset.act === 'select') update(row, { selectedId: e.target.value, manual: true, include: true });
+  // A manual choice counts as searched, so "Resume search" leaves this entry alone
+  if (e.target.dataset.act === 'select') update(row, { selectedId: e.target.value, manual: true, include: true, status: 'done' });
 }
 
 function onClick(e) {
@@ -289,7 +300,7 @@ async function onSubmit(e) {
       const track = await client.getTrack(id);
       const cand = { track: slimTrack(track), score: round(scoreTrack(row.entry, track).score) };
       form.elements.link.value = '';
-      update(row, { busy: null, candidates: dedupe([cand, ...row.candidates]), selectedId: cand.track.id, manual: true, include: true });
+      update(row, { busy: null, candidates: dedupe([cand, ...row.candidates]), selectedId: cand.track.id, manual: true, include: true, status: 'done' });
     }
   } catch (err) {
     update(row, { busy: null });

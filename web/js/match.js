@@ -195,6 +195,12 @@ function queryValue(s) {
   return String(s || '').replace(/[":]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** True if both queries consist of the same words (in any order). */
+function sameWords(a, b) {
+  const words = (s) => [...new Set(normalize(s).split(' '))].sort().join(' ');
+  return words(a) === words(b);
+}
+
 /**
  * Finds matching tracks for an entry.
  * search(q) -> Promise<Track[]>, getTrack(id) -> Promise<Track>
@@ -207,6 +213,7 @@ export async function findCandidates(entry, { search, getTrack, order = 'auto' }
   }
 
   const pool = new Map();
+  const queried = new Set();
   let lastError = null;
   const ranked = () =>
     [...pool.values()]
@@ -215,14 +222,16 @@ export async function findCandidates(entry, { search, getTrack, order = 'auto' }
   const best = () => ranked()[0];
   const weak = (min) => !best() || best().score < min;
   const run = async (q, viaIsrc = false) => {
-    if (!q) return;
+    if (!q || queried.has(q)) return;
+    queried.add(q);
     try {
       const tracks = await search(q);
       tracks.forEach((track, rank) => {
         if (track?.id && !pool.has(track.id)) pool.set(track.id, { track, rank, viaIsrc });
       });
     } catch (err) {
-      if (err?.name === 'AuthError') throw err;
+      // Stop right away if searching on is pointless: cancelled, logged out, quota or access problems
+      if (err?.name === 'AuthError' || err?.name === 'AbortError' || err?.fatal) throw err;
       lastError = err;
     }
   };
@@ -230,17 +239,12 @@ export async function findCandidates(entry, { search, getTrack, order = 'auto' }
   if (entry.isrc) await run(`isrc:${entry.isrc}`, true);
 
   if (entry.artist && entry.title && weak(0.9)) {
-    const title = splitTitle(entry.title);
-    const wantsVersion = versionWords(entry.title).size > 0;
-    // 1. field search, 2. free text incl. version, 3. swapped order, 4. title only
-    await run(`track:${queryValue(title.core)} artist:${queryValue(primaryArtist(entry.artist))}`);
-    if (weak(0.9) || (wantsVersion && best().versionMatch < 0.95)) {
-      await run(`${queryValue(entry.artist)} ${queryValue(entry.title)}`);
-    }
-    if (order === 'auto' && weak(0.75)) {
-      await run(`track:${queryValue(splitTitle(entry.artist).core)} artist:${queryValue(primaryArtist(entry.title))}`);
-    }
-    if (weak(SCORE_ACCEPT)) await run(queryValue(title.core));
+    // Requests are limited: one free-text search finds most tracks in any order and version.
+    // Only if nothing fits, a second, simpler search follows (core title + main artist, or the title alone).
+    const first = queryValue(`${entry.artist} ${entry.title}`);
+    const simple = queryValue(`${splitTitle(entry.title).core} ${primaryArtist(entry.artist)}`);
+    await run(first);
+    if (weak(SCORE_ACCEPT)) await run(sameWords(first, simple) ? queryValue(splitTitle(entry.title).core) : simple);
   } else if (!entry.isrc || weak(SCORE_ACCEPT)) {
     await run(queryValue(entry.query || [entry.artist, entry.title].filter(Boolean).join(' ')));
   }

@@ -1,6 +1,6 @@
 // Demo mode: simulates the Spotify API with a small catalog – no login, no real changes.
 import { normalize } from './match.js';
-import { ApiError } from './spotify.js';
+import { ApiError, sleep } from './spotify.js';
 import { t } from './i18n.js';
 
 const COLORS = ['#e76f51', '#2a9d8f', '#e9c46a', '#264653', '#8338ec', '#ff006e', '#3a86ff', '#6a994e'];
@@ -65,7 +65,7 @@ export const DEMO_LIST = [
   'https://open.spotify.com/track/demo000000000000000009',
 ].join('\n');
 
-const wait = (min, max) => new Promise((r) => setTimeout(r, min + Math.random() * (max - min)));
+const wait = (min, max, signal) => sleep(min + Math.random() * (max - min), signal);
 
 export class DemoClient {
   constructor() {
@@ -85,8 +85,8 @@ export class DemoClient {
     return { id: 'demo', display_name: t('demo.account') };
   }
 
-  async search(q, { limit = 10 } = {}) {
-    await wait(120, 450);
+  async search(q, { limit = 10, signal } = {}) {
+    await wait(250, 600, signal);
     if (/isrc:/i.test(q)) return [];
     const terms = normalize(q.replace(/\b(track|artist|album|year):/gi, ' ')).split(' ').filter(Boolean);
     if (!terms.length) return [];
@@ -100,8 +100,8 @@ export class DemoClient {
       .map(([track]) => track);
   }
 
-  async getTrack(id) {
-    await wait(80, 200);
+  async getTrack(id, { signal } = {}) {
+    await wait(80, 200, signal);
     const track = DEMO_TRACKS.find((x) => x.id === id);
     if (!track) throw new ApiError(404, t('demo.trackMissing'));
     return track;

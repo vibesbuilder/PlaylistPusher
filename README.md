@@ -112,15 +112,27 @@ Empty lines and lines starting with `#` or `//` are ignored. UTF-8, UTF-16 and W
 
 Open `http://127.0.0.1:8138/?demo` (or use the demo link on the setup page) to try PlaylistPusher with a small sample catalog. The demo does not access Spotify and changes nothing.
 
+## Spotify request limits
+
+Spotify limits the number of requests for apps in Development Mode; the limit is shared by all Development Mode apps of your Spotify developer account and Spotify does not publish its size or reset time. PlaylistPusher therefore searches one entry at a time, spreads its requests out and needs only one or two searches per entry.
+
+- **Cancel search** stops the search immediately; the results found so far are kept.
+- If Spotify's limit is reached, the search stops by itself and keeps its results.
+- **Resume search** continues with the remaining entries (and retries searches that failed) whenever you like.
+
 ## Troubleshooting
 
 | Problem | Solution |
 |---|---|
 | *Port 8138 is already in use* | PlaylistPusher is already running in another window – close it. Or start with `--port 8139` and add `http://127.0.0.1:8139/callback` as an additional redirect URI in your Spotify app. |
 | Spotify shows *INVALID_CLIENT: Invalid redirect URI* | The redirect URI in your Spotify app must be exactly `http://127.0.0.1:8138/callback`. |
+| *The request quota of your Spotify app is used up* | Spotify's request limit is reached (see above). Wait a while, then click *Resume search*. |
+| *Spotify is rejecting requests because too many were sent in a short time* | Wait a minute, then click *Resume search*. |
+| *Access denied (403): Insufficient client scope* | Log out, log in again and make sure you use the latest version of PlaylistPusher. |
 | *Access denied (403)* | Add the Spotify account under *User Management* in your Spotify app; the app owner needs Premium. |
 | *Your Spotify session has expired* | Log in again (Spotify requires this at least every 6 months). Your list is kept. |
-| Badge *not playable* | The track is not available in the country of your Spotify account – choose an alternative. |
+
+Error messages name the step that failed (e.g. *Search: …* or *Loading playlists: …*). Details of failed requests are also written to the browser console (F12).
 
 ## Privacy
 

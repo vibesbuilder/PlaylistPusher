@@ -10,7 +10,8 @@ import { $, $$, debounce, showView, notice, initNotice } from './ui.js';
 const CLIENT_KEY = 'pp.clientId';
 const PRELOAD_KEY = 'pp.preloadId';
 const NEW_PLAYLIST = '__new';
-const CONCURRENCY = 3;
+// One search at a time: Spotify's request quota for Development Mode apps is small
+const CONCURRENCY = 1;
 
 const urlParams = new URLSearchParams(location.search);
 
@@ -85,12 +86,17 @@ async function init() {
 
 async function startApp() {
   showView('loading');
+  notice(null);
   state.client.onWait = (ms) => setProgressText(t('review.rateLimited', { seconds: Math.ceil(ms / 1000) }));
   try {
     state.me = await state.client.me();
   } catch (err) {
-    showView('login');
-    return handleError(err);
+    if (err instanceof AuthError) {
+      showView('login');
+      return handleError(err);
+    }
+    notice(err.message, { type: 'error', action: { label: t('app.retry'), fn: startApp } });
+    return;
   }
   $('#account').hidden = false;
   $('#account-name').textContent = state.demo ? t('demo.account') : state.me.display_name || state.me.id;
@@ -105,9 +111,10 @@ async function startApp() {
 
   if (restored) {
     state.session = restored;
+    // Interrupted searches are not resumed automatically, so no requests are spent without asking
+    restored.rows.forEach((r) => { if (r.status === 'searching') r.status = 'pending'; });
     openReview();
     notice(t('review.restored'), { action: { label: t('review.discard'), fn: resetToInput } });
-    resumeMatching();
     return;
   }
   showView('input');
@@ -122,8 +129,8 @@ async function startApp() {
 
 function handleError(err) {
   if (err instanceof AuthError) {
+    stopMatching();
     saveNow();
-    state.matching = false;
     state.importing = false;
     $('#account').hidden = true;
     if (state.clientId) showView('login');
@@ -187,6 +194,7 @@ function bindSetup() {
       location.href = '/';
       return;
     }
+    stopMatching();
     saveNow();
     logout();
     state.client = null;
@@ -443,15 +451,26 @@ async function loadExistingUris() {
 
 const setProgressText = (text) => { $('#progress-text').textContent = text; };
 let matchRun = 0;
+let matchController = null;
 
 async function resumeMatching() {
   const session = state.session;
-  const queue = session.rows.filter((r) => r.status === 'pending' || r.status === 'searching');
+  if (!session || state.matching || state.importing) return;
+  // Not searched yet, interrupted, or failed because of Spotify (list errors like album links stay as they are)
+  const queue = session.rows.filter((r) => r.status === 'pending' || r.status === 'searching' || (r.status === 'error' && !r.entry.error));
   if (!queue.length) return;
+
   const run = ++matchRun;
+  const controller = new AbortController();
+  matchController = controller;
   const active = () => run === matchRun && state.session === session;
-  queue.forEach((r) => { r.status = 'pending'; touch(r); });
+  queue.forEach((r) => {
+    r.status = 'pending';
+    r.error = null;
+    touch(r);
+  });
   state.matching = true;
+  notice(null);
 
   const total = session.rows.length;
   const updateProgress = () => {
@@ -463,9 +482,9 @@ async function resumeMatching() {
   updateProgress();
   refresh();
 
-  let authError = null;
+  let fatal = null;
   const worker = async () => {
-    while (queue.length && !authError && active()) {
+    while (queue.length && !fatal && !controller.signal.aborted && active()) {
       const row = queue.shift();
       row.status = 'searching';
       touch(row);
@@ -474,17 +493,18 @@ async function resumeMatching() {
         if (row.entry.error) throw new Error(row.entry.error);
         const candidates = await findCandidates(row.entry, {
           order: session.order,
-          search: (q) => state.client.search(q),
-          getTrack: (id) => state.client.getTrack(id),
+          search: (q) => state.client.search(q, { signal: controller.signal }),
+          getTrack: (id) => state.client.getTrack(id, { signal: controller.signal }),
         });
         row.candidates = candidates.map((c) => ({ track: slimTrack(c.track), score: Math.round(c.score * 1000) / 1000, swapped: c.swapped || undefined }));
         row.selectedId = row.candidates[0]?.track.id ?? null;
         row.include = !!row.candidates[0] && row.candidates[0].score >= SCORE_ACCEPT;
         row.status = 'done';
       } catch (err) {
-        if (err instanceof AuthError) {
-          authError = err;
+        if (err.name === 'AbortError' || err instanceof AuthError || err.fatal) {
+          // Cancelled or pointless to continue (quota, rate limit, access denied): try this row again later
           row.status = 'pending';
+          if (err.name !== 'AbortError') fatal = err;
         } else {
           row.status = 'error';
           row.error = err.message;
@@ -499,23 +519,36 @@ async function resumeMatching() {
     }
   };
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  if (matchController === controller) matchController = null;
   if (!active()) return;
 
   state.matching = false;
   $('#progress').hidden = true;
   refresh();
   saveNow();
-  if (authError) return handleError(authError);
+
+  if (fatal instanceof AuthError) return handleError(fatal);
+  const pending = session.rows.filter((r) => r.status === 'pending').length;
+  const resume = pending ? { label: t('review.resumeShort'), fn: resumeMatching } : null;
+  if (fatal) return notice(`${fatal.message} ${t('review.resultsKept')}`, { type: 'error', action: resume });
+  if (controller.signal.aborted) return notice(t('review.cancelled', { n: pending }), { action: resume });
 
   const counts = { sure: 0, check: 0, none: 0 };
   session.rows.forEach((r) => { counts[rowClass(r)] = (counts[rowClass(r)] || 0) + 1; });
   notice(t('review.doneNotice', counts), { type: counts.check + counts.none ? 'info' : 'ok' });
 }
 
+/** Cancels the running search immediately, including requests in flight and rate-limit waits. */
+function cancelMatching() {
+  matchController?.abort();
+}
+
 // ---------- Confirmation & import ----------
 
 function bindReview() {
   $('#btn-back').addEventListener('click', backToInput);
+  $('#btn-cancel').addEventListener('click', cancelMatching);
+  $('#btn-resume').addEventListener('click', resumeMatching);
   $('#btn-import').addEventListener('click', confirmImport);
   $('#btn-new').addEventListener('click', resetToInput);
   $('#review-playlist').addEventListener('change', onReviewTargetChange);
@@ -533,6 +566,8 @@ function bindReview() {
 
 function stopMatching() {
   matchRun++;
+  matchController?.abort();
+  matchController = null;
   state.matching = false;
   $('#progress').hidden = true;
 }
@@ -578,14 +613,16 @@ async function confirmImport() {
     return;
   }
   const notImported = s.rows.filter((r) => !r.imported && !rows.includes(r));
+  const notSearched = notImported.filter((r) => r.status === 'pending').length;
   const duplicates = notImported.filter((r) => r.dup && r.include).length;
-  const excluded = notImported.length - duplicates;
+  const excluded = notImported.length - duplicates - notSearched;
   const unconfirmed = rows.filter((r) => rowClass(r) !== 'sure').length;
 
   $('#confirm-text').textContent = t(s.target.id ? 'confirm.question' : 'confirm.questionNew', { count: rows.length, name: s.target.name });
   const details = [t('confirm.order')];
   if (unconfirmed) details.push(t('confirm.unconfirmed', { n: unconfirmed }));
   if (duplicates) details.push(t('confirm.duplicates', { n: duplicates }));
+  if (notSearched) details.push(t('confirm.notSearched', { n: notSearched }));
   if (excluded) details.push(t('confirm.excluded', { n: excluded }));
   $('#confirm-details').replaceChildren(...details.map((text) => Object.assign(document.createElement('li'), { textContent: text })));
 

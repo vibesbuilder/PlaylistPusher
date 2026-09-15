@@ -124,9 +124,13 @@
           <label class="check" id="review-new-public-wrap" hidden><input type="checkbox" id="review-new-public"> <span data-i18n="input.public"></span></label>
         </div>
         <p class="hint" id="review-target-hint" data-i18n="review.newTargetInfo" hidden></p>
-        <div id="progress" class="progress" hidden>
-          <div class="bar"><span id="progress-bar"></span></div>
-          <span id="progress-text" class="muted"></span>
+        <div class="progress-row">
+          <div id="progress" class="progress" hidden>
+            <div class="bar"><span id="progress-bar"></span></div>
+            <span id="progress-text" class="muted"></span>
+            <button type="button" class="small" id="btn-cancel" data-i18n="review.cancel" hidden></button>
+          </div>
+          <button type="button" class="small primary" id="btn-resume" hidden></button>
         </div>
         <div class="chips" id="filters">
           <button data-filter="all" class="chip active"><span data-i18n="review.filter.all"></span> <b id="count-all">0</b></button>

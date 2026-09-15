@@ -1,5 +1,5 @@
-// Spotify: login (Authorization Code with PKCE) and Web API calls
-// including token refresh, rate-limit handling and retries.
+// Spotify: login (Authorization Code with PKCE) and Web API calls with request pacing,
+// token refresh, rate-limit/quota handling and cancellation.
 import { t } from './i18n.js';
 
 const AUTH_URL = 'https://accounts.spotify.com/authorize';
@@ -9,15 +9,25 @@ const SCOPES = ['playlist-read-private', 'playlist-read-collaborative', 'playlis
 const TOKEN_KEY = 'pp.token';
 const PKCE_KEY = 'pp.pkce';
 
+// Development Mode apps share a small request quota per developer account,
+// so requests are spread out and rate limits are retried only a few times.
+const MIN_INTERVAL_MS = 400;
+const MAX_INTERVAL_MS = 3000;
+const MAX_RATE_LIMIT_RETRIES = 3;
+const MAX_WAIT_MS = 60000;
+const SEARCH_CACHE_SIZE = 500;
+
 export class AuthError extends Error {
   name = 'AuthError';
 }
 
 export class ApiError extends Error {
   name = 'ApiError';
-  constructor(status, message) {
+  constructor(status, message, { fatal = false, retryAfter = null } = {}) {
     super(message);
     this.status = status;
+    this.fatal = fatal; // further requests are pointless for now (quota, rate limit, access denied)
+    this.retryAfter = retryAfter; // seconds, if Spotify sent a Retry-After header
   }
 }
 
@@ -35,7 +45,23 @@ const store = {
   },
 };
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const abortError = () => new DOMException('Aborted', 'AbortError');
+
+/** Waits ms milliseconds; rejects with an AbortError when the signal is aborted. */
+export function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(abortError());
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
 function randomString(length) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -124,18 +150,26 @@ function apiErrorText(status, data) {
   const msg = data?.error?.message || data?.error_description || '';
   const message = msg ? `: ${msg}` : '';
   if (status === 403) {
-    const hint = /regist|premium|developer|not.*allow/i.test(msg) ? t('api.forbiddenHint') : '';
+    let hint = '';
+    if (/regist|premium|developer|not.*allow/i.test(msg)) hint = t('api.forbiddenHint');
+    else if (/scope/i.test(msg)) hint = t('api.scopeHint');
     return t('api.forbidden', { message }) + hint;
   }
   if (status === 404) return t('api.notFound', { message });
   return t('api.error', { status, message });
 }
 
+const retryText = (seconds) => (seconds ? t('api.retryIn', { minutes: Math.max(1, Math.ceil(seconds / 60)) }) : t('api.retryLater'));
+const withContext = (context, message) => (context ? `${t(context)}: ${message}` : message);
+
 export class SpotifyClient {
   constructor(clientId) {
     this.clientId = clientId;
     this.refreshing = null;
     this.onWait = null; // callback(ms) while waiting because of rate limits
+    this.interval = MIN_INTERVAL_MS;
+    this.nextSlot = 0;
+    this.searchCache = new Map();
   }
 
   async accessToken(forceRefresh = false) {
@@ -158,13 +192,26 @@ export class SpotifyClient {
     return this.refreshing;
   }
 
-  async request(method, path, { query, body } = {}) {
+  /** Waits for the next free request slot, so requests are spread out evenly. */
+  async pace(signal) {
+    const now = Date.now();
+    const start = Math.max(now, this.nextSlot);
+    this.nextSlot = start + this.interval;
+    if (start > now) await sleep(start - now, signal);
+  }
+
+  async request(method, path, { query, body, signal, context } = {}) {
     const url = path.startsWith('https://') ? path : `${API_URL}${path}${query ? `?${new URLSearchParams(query)}` : ''}`;
     // POST requests are not retried on server/network errors to avoid duplicate playlist entries
     const idempotent = method === 'GET';
+    let refreshed = false;
     let forceRefresh = false;
+    let networkRetries = 0;
+    let serverRetries = 0;
+    let rateLimitRetries = 0;
 
-    for (let attempt = 0; ; attempt++) {
+    for (;;) {
+      await this.pace(signal);
       const token = await this.accessToken(forceRefresh);
       forceRefresh = false;
 
@@ -174,49 +221,82 @@ export class SpotifyClient {
           method,
           headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
           body: body ? JSON.stringify(body) : undefined,
+          signal,
         });
-      } catch {
-        if (!idempotent || attempt >= 3) throw new ApiError(0, t('api.offline'));
-        await sleep(1000 * 2 ** attempt);
+      } catch (err) {
+        if (err.name === 'AbortError') throw err;
+        if (!idempotent || networkRetries >= 2) throw new ApiError(0, withContext(context, t('api.offline')));
+        networkRetries++;
+        await sleep(1000 * 2 ** networkRetries, signal);
         continue;
       }
 
       if (res.status === 401) {
-        if (attempt === 0) { forceRefresh = true; continue; }
+        if (!refreshed) {
+          refreshed = true;
+          forceRefresh = true;
+          continue;
+        }
         logout();
         throw new AuthError(t('auth.rejected'));
       }
 
-      const retryable = res.status === 429 || (idempotent && res.status >= 500);
-      if (retryable && attempt < 6) {
-        const text = await res.text().catch(() => '');
-        if (res.status === 429 && /quota/i.test(text)) throw new ApiError(429, t('api.quota'));
-        // Retry-After is not exposed via CORS in every case, so fall back to exponential backoff
-        const retryAfter = Number(res.headers.get('Retry-After'));
-        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(2000 * 2 ** attempt, 30000);
+      if (res.status === 429) {
+        const data = await res.json().catch(() => null);
+        const retryAfter = Number(res.headers.get('Retry-After')) || null;
+        this.logFailure(method, url, res.status, data);
+        if (data?.error?.reason === 'QUOTA_EXCEEDED' || /quota/i.test(JSON.stringify(data ?? ''))) {
+          throw new ApiError(429, withContext(context, `${t('api.quota')} ${retryText(retryAfter)}`), { fatal: true, retryAfter });
+        }
+        const wait = retryAfter ? retryAfter * 1000 : 5000 * (rateLimitRetries + 1);
+        if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES || wait > MAX_WAIT_MS) {
+          throw new ApiError(429, withContext(context, `${t('api.rateLimited')} ${retryText(retryAfter)}`), { fatal: true, retryAfter });
+        }
+        rateLimitRetries++;
+        this.interval = Math.min(this.interval * 2, MAX_INTERVAL_MS); // slow down for the rest of the session
+        this.nextSlot = Math.max(this.nextSlot, Date.now() + wait);
         this.onWait?.(wait);
-        await sleep(wait);
+        continue;
+      }
+
+      if (res.status >= 500 && idempotent && serverRetries < 2) {
+        serverRetries++;
+        this.nextSlot = Math.max(this.nextSlot, Date.now() + 2000 * serverRetries);
         continue;
       }
 
       if (res.status === 204) return null;
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new ApiError(res.status, apiErrorText(res.status, data));
+      if (!res.ok) {
+        this.logFailure(method, url, res.status, data);
+        throw new ApiError(res.status, withContext(context, apiErrorText(res.status, data)), { fatal: res.status === 403 });
+      }
       return data;
     }
   }
 
+  logFailure(method, url, status, data) {
+    console.warn(`[Spotify] ${method} ${url.replace(API_URL, '').split('?')[0]} → ${status}`, data?.error ?? data);
+  }
+
   me() {
-    return this.request('GET', '/me');
+    return this.request('GET', '/me', { context: 'api.ctx.profile' });
   }
 
-  async search(q, { limit = 10, offset = 0 } = {}) {
-    const data = await this.request('GET', '/search', { query: { q, type: 'track', limit, offset, market: 'from_token' } });
-    return (data?.tracks?.items || []).filter(Boolean);
+  /** Track search. Identical queries are answered from a cache to save requests. */
+  async search(q, { limit = 10, offset = 0, signal } = {}) {
+    const key = `${q.trim().toLowerCase()}|${limit}|${offset}`;
+    if (this.searchCache.has(key)) return this.searchCache.get(key);
+    // No market parameter: with a user token Spotify uses the country of the account
+    const data = await this.request('GET', '/search', { query: { q, type: 'track', limit, offset }, signal, context: 'api.ctx.search' });
+    const tracks = (data?.tracks?.items || []).filter(Boolean);
+    if (this.searchCache.size >= SEARCH_CACHE_SIZE) this.searchCache.delete(this.searchCache.keys().next().value);
+    this.searchCache.set(key, tracks);
+    return tracks;
   }
 
-  getTrack(id) {
-    return this.request('GET', `/tracks/${encodeURIComponent(id)}`, { query: { market: 'from_token' } });
+  getTrack(id, { signal } = {}) {
+    return this.request('GET', `/tracks/${encodeURIComponent(id)}`, { signal, context: 'api.ctx.track' });
   }
 
   /** All playlists of the user, including followed ones (the UI filters them). */
@@ -224,7 +304,7 @@ export class SpotifyClient {
     const all = [];
     let url = '/me/playlists?limit=50';
     while (url) {
-      const page = await this.request('GET', url);
+      const page = await this.request('GET', url, { context: 'api.ctx.playlists' });
       all.push(...(page?.items || []).filter(Boolean));
       url = page?.next;
     }
@@ -236,7 +316,7 @@ export class SpotifyClient {
     const uris = new Set();
     let url = `/playlists/${encodeURIComponent(playlistId)}/items?limit=50&additional_types=track`;
     while (url) {
-      const page = await this.request('GET', url);
+      const page = await this.request('GET', url, { context: 'api.ctx.playlistItems' });
       for (const it of page?.items || []) {
         const uri = (it.item || it.track)?.uri;
         if (uri) uris.add(uri);
@@ -247,7 +327,7 @@ export class SpotifyClient {
   }
 
   createPlaylist({ name, isPublic = false, description = '' }) {
-    return this.request('POST', '/me/playlists', { body: { name, public: isPublic, description } });
+    return this.request('POST', '/me/playlists', { body: { name, public: isPublic, description }, context: 'api.ctx.createPlaylist' });
   }
 
   /** Adds tracks in chunks of 100. On failure, err.added holds the number already added. */
@@ -256,7 +336,7 @@ export class SpotifyClient {
     try {
       for (let i = 0; i < uris.length; i += 100) {
         const chunk = uris.slice(i, i + 100);
-        await this.request('POST', `/playlists/${encodeURIComponent(playlistId)}/items`, { body: { uris: chunk } });
+        await this.request('POST', `/playlists/${encodeURIComponent(playlistId)}/items`, { body: { uris: chunk }, context: 'api.ctx.addTracks' });
         added += chunk.length;
         onProgress?.(added, uris.length);
       }
