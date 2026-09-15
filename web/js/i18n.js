@@ -1,0 +1,386 @@
+// Localization: English (default) and German.
+// Entries are strings with {placeholders} or functions (for plurals).
+
+const LANG_KEY = 'pp.lang';
+export const LANGUAGES = ['en', 'de'];
+
+const plural = (n, one, other) => (n === 1 ? one : other);
+
+const en = {
+  'lang.label': 'Language',
+  'notice.dismiss': 'Dismiss',
+  loading: 'Loading…',
+  'account.clientId': 'Client ID',
+  'account.logout': 'Log out',
+  'account.exitDemo': 'Exit demo',
+
+  'how.title': 'How it works',
+  'how.1': 'Paste your track list or open a file',
+  'how.2': 'Choose the target playlist – or create a new one',
+  'how.3': 'Review the matches and fix any wrong track',
+  'how.4': 'Confirm – only then are the tracks added',
+
+  'setup.title': 'Setup',
+  'setup.intro': 'To access your Spotify account, PlaylistPusher needs its own Spotify app. You only do this once, and it is free:',
+  'setup.step1': 'Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> and log in.',
+  'setup.step2': 'Click <b>Create app</b>. Name and description are up to you. Under <b>Redirect URIs</b>, enter exactly this address:',
+  'setup.step3': 'Under <b>Which API/SDKs are you planning to use?</b>, tick <b>Web API</b> and save.',
+  'setup.step4': 'Copy the <b>Client ID</b> from the app settings and paste it here:',
+  'setup.copy': 'Copy',
+  'setup.placeholder': 'Client ID (32 characters)',
+  'setup.pattern': '32 characters (0–9, a–f)',
+  'setup.save': 'Save',
+  'setup.hint': 'Spotify rules for such apps (Development Mode): the app owner needs Spotify Premium. Other Spotify accounts must be added in the app under <b>User Management</b> (max. 5).',
+  'setup.demo': 'Try the demo first, without Spotify →',
+  'setup.copied': 'Redirect URI copied.',
+  'setup.copyManually': 'Please copy it manually: {uri}',
+
+  'login.title': 'Connect to Spotify',
+  'login.text': 'Log in with the Spotify account whose playlists you want to fill.',
+  'login.button': 'Log in with Spotify',
+  'login.changeClientId': 'Change Client ID',
+  'login.demo': 'Try the demo without Spotify →',
+
+  'input.listTitle': 'Track list',
+  'input.placeholder': 'One track per line, e.g.\nQueen - Bohemian Rhapsody\nFalco – Rock Me Amadeus\nhttps://open.spotify.com/track/…\n\nAlso supported: CSV/TSV with a header row (Artist, Title), M3U, columns copied from Excel.\nOr simply drop a file here.',
+  'input.openFile': 'Open file…',
+  'input.order': 'Order',
+  'input.order.auto': 'detect automatically',
+  'input.order.artistTitle': 'Artist – Title',
+  'input.order.titleArtist': 'Title – Artist',
+  'input.exampleList': 'Insert example list',
+  'input.parsed': ({ n, format, unusable }) => `${n} ${plural(n, 'entry', 'entries')} recognized (${format})${unusable ? ` · ${unusable} unusable` : ''}`,
+  'input.fileLoaded': 'File “{name}” loaded.',
+  'input.listLoaded': 'List “{name}” loaded.',
+  'input.targetTitle': 'Target playlist',
+  'input.reloadPlaylists': 'Reload playlists',
+  'input.newName': 'Name of the new playlist',
+  'input.public': 'public',
+  'input.targetHint': 'Only playlists you own or collaborate on are listed.',
+  'input.start': 'Find tracks',
+  'input.needList': 'Paste a track list first.',
+  'input.needTarget': 'Choose a target playlist (or create a new one).',
+  'input.needName': 'Enter a name for the new playlist.',
+
+  'playlists.loading': 'Loading playlists…',
+  'playlists.choose': '– Choose a playlist –',
+  'playlists.new': '+ Create new playlist …',
+  'playlists.option': ({ name, count, shared }) => `${name}${count != null ? ` (${count} ${plural(count, 'track', 'tracks')})` : ''}${shared ? ' · collaborative' : ''}`,
+  'playlists.notFound': 'The playlist {id} was not found or is not yours.',
+  'playlists.willCreate': 'There is no playlist “{name}” yet – it will be created when importing.',
+  'playlists.existingFailed': 'Could not read the tracks already in the playlist ({message}). Duplicates with the playlist will not be detected.',
+
+  'review.title': 'Review & adjust',
+  'review.back': '← Edit list',
+  'review.target': 'Target playlist',
+  'review.newTargetInfo': 'The new playlist will be created when importing.',
+  'review.filter.all': 'All',
+  'review.filter.sure': 'Confident',
+  'review.filter.check': 'Please check',
+  'review.filter.none': 'Uncertain / not found',
+  'review.filter.dup': 'Duplicates',
+  'review.skipDuplicates': 'Skip duplicates (repeated in the list or already in the playlist)',
+  'review.empty': 'No entries in this view.',
+  'review.restored': 'Your last list that was not imported yet has been restored.',
+  'review.discard': 'Discard',
+  'review.backConfirm': 'Your manual changes will be lost. Go back to the list anyway?',
+  'review.searching': 'Search in progress – you can already review and change entries.',
+  'review.footer': ({ count, total, imported }) => `${count} of ${total} ${plural(total, 'entry', 'entries')} will be added${imported ? ` · ${imported} already imported` : ''}`,
+  'review.importButton': ({ count }) => `Import ${count} ${plural(count, 'track', 'tracks')}`,
+  'review.importing': 'Importing…',
+  'review.progress': '{done} of {total} searched',
+  'review.rateLimited': 'Spotify is throttling requests – waiting {seconds} s …',
+  'review.doneNotice': ({ sure, check, none }) => (check + none
+    ? `Search finished: ${sure} confident, ${check} to check, ${none} uncertain/not found. Please review the yellow and red entries.`
+    : `Search finished: ${plural(sure, 'the entry was', `all ${sure} entries were`)} matched confidently.`),
+  'review.needsName': 'Enter a name for the new playlist to import.',
+
+  'row.include': 'Import entry {n}',
+  'row.change': 'Change',
+  'row.close': 'Close',
+  'row.spotifyLink': 'Spotify link',
+  'row.isrc': 'ISRC {isrc}',
+  'row.swapped': 'recognized as “Title – Artist”',
+  'row.freeText': 'free text search',
+  'row.waiting': 'Waiting…',
+  'row.searching': 'Searching…',
+  'row.noSelection': 'No track selected',
+  'row.noMatch': 'No matching track found',
+  'row.openInSpotify': 'Open in Spotify',
+  'row.notPlayable': 'not playable',
+  'row.imported': '✓ imported',
+  'row.manual': 'chosen manually',
+  'row.scoreTitle': 'Match with the list entry',
+  'row.notFound': 'not found',
+  'row.inPlaylist': 'already in playlist',
+  'row.duplicate': 'duplicate in list',
+  'row.play': '▶ Listen',
+  'row.stop': '■ Stop',
+  'row.noSuggestions': 'No suggestions – search below or paste a Spotify link.',
+  'row.searchPlaceholder': 'Search, e.g. artist title',
+  'row.searchLabel': 'Search Spotify',
+  'row.search': 'Search',
+  'row.searchBusy': 'Searching…',
+  'row.linkPlaceholder': '…or paste the Spotify link of the correct track',
+  'row.linkLabel': 'Spotify link',
+  'row.apply': 'Apply',
+  'row.applyBusy': 'Loading…',
+  'row.skip': 'Don’t import this entry',
+  'row.player': 'Spotify player',
+  'row.noResults': 'No results for “{q}”.',
+  'row.invalidLink': 'That is not a Spotify track link. Expected something like https://open.spotify.com/track/…',
+
+  'confirm.title': 'Confirm import',
+  'confirm.question': ({ count, name }) => `Add ${count} ${plural(count, 'track', 'tracks')} to the playlist “${name}”?`,
+  'confirm.questionNew': ({ count, name }) => `Create the new playlist “${name}” and add ${count} ${plural(count, 'track', 'tracks')}?`,
+  'confirm.order': 'Tracks are appended to the end of the playlist in the order of the list.',
+  'confirm.unconfirmed': ({ n }) => `${n} of them ${plural(n, 'is', 'are')} not matched confidently (yellow/red).`,
+  'confirm.duplicates': ({ n }) => `${n} ${plural(n, 'duplicate is', 'duplicates are')} skipped.`,
+  'confirm.excluded': ({ n }) => `${n} ${plural(n, 'entry is', 'entries are')} deselected or not found.`,
+  'confirm.cancel': 'Cancel',
+  'confirm.ok': 'Import now',
+
+  'import.starting': 'Starting import …',
+  'import.creating': 'Creating playlist …',
+  'import.progress': '{count} of {total} added',
+  'import.description': 'Imported with PlaylistPusher',
+  'import.partial': ({ added, total }) => `${added} of ${total} tracks were already added (marked green). `,
+  'import.failed': '{partial}Import aborted: {message}',
+  'done.title': 'Import complete',
+  'done.created': ({ name, count }) => `The playlist “${name}” was created and ${count} ${plural(count, 'track was', 'tracks were')} added.`,
+  'done.added': ({ name, count }) => `${count} ${plural(count, 'track was', 'tracks were')} added to the playlist “${name}”.`,
+  'done.open': 'Open playlist in Spotify',
+  'done.new': 'Import another list',
+
+  'error.sessionKept': 'Your list and changes are kept.',
+  'parse.unsupportedLink': 'Only track links are supported (no albums or playlists).',
+  'auth.cancelled': 'Spotify login was cancelled.',
+  'auth.failed': 'Spotify login failed: {error}',
+  'auth.invalidState': 'The login is invalid or outdated – please log in again.',
+  'auth.invalidClient': 'The Client ID is invalid. Please check it in the setup.',
+  'auth.expired': 'Your Spotify session has expired – please log in again.',
+  'auth.invalidRequest': 'Login failed: {details}. Does the redirect URI in your Spotify app match?',
+  'auth.notLoggedIn': 'Not logged in to Spotify.',
+  'auth.rejected': 'Spotify rejected the login – please log in again.',
+  'api.offline': 'No connection to Spotify – please check your internet connection.',
+  'api.quota': 'The request quota of your Spotify app is used up – please try again later.',
+  'api.forbidden': 'Access denied (403){message}',
+  'api.forbiddenHint': ' – Is your Spotify account listed under “User Management” in the app, and does the app owner have Premium?',
+  'api.notFound': 'Not found (404){message}',
+  'api.error': 'Spotify error {status}{message}',
+
+  'demo.account': 'Demo account',
+  'demo.trackMissing': 'Not found (404): track does not exist (demo)',
+};
+
+const de = {
+  'lang.label': 'Sprache',
+  'notice.dismiss': 'Hinweis schließen',
+  loading: 'Wird geladen…',
+  'account.clientId': 'Client ID',
+  'account.logout': 'Abmelden',
+  'account.exitDemo': 'Demo beenden',
+
+  'how.title': 'So funktioniert’s',
+  'how.1': 'Titelliste einfügen oder Datei öffnen',
+  'how.2': 'Ziel-Playlist wählen – oder eine neue anlegen',
+  'how.3': 'Treffer prüfen und falsch erkannte Tracks korrigieren',
+  'how.4': 'Bestätigen – erst dann werden die Titel hinzugefügt',
+
+  'setup.title': 'Einrichtung',
+  'setup.intro': 'Für den Zugriff auf deinen Spotify-Account braucht PlaylistPusher eine eigene Spotify-App. Das ist einmalig und kostenlos:',
+  'setup.step1': 'Öffne <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> und melde dich an.',
+  'setup.step2': 'Klicke auf <b>Create app</b>. Name und Beschreibung sind beliebig. Bei <b>Redirect URIs</b> trägst du genau diese Adresse ein:',
+  'setup.step3': 'Bei <b>Which API/SDKs are you planning to use?</b> hakst du <b>Web API</b> an und speicherst.',
+  'setup.step4': 'In den App-Einstellungen die <b>Client ID</b> kopieren und hier einfügen:',
+  'setup.copy': 'Kopieren',
+  'setup.placeholder': 'Client ID (32 Zeichen)',
+  'setup.pattern': '32 Zeichen (0–9, a–f)',
+  'setup.save': 'Speichern',
+  'setup.hint': 'Spotify-Vorgaben für solche Apps (Development Mode): Der Besitzer der App braucht Spotify Premium. Andere Spotify-Konten müssen in der App unter <b>User Management</b> eingetragen werden (max. 5).',
+  'setup.demo': 'Erst einmal die Demo ohne Spotify ausprobieren →',
+  'setup.copied': 'Redirect-URI kopiert.',
+  'setup.copyManually': 'Bitte manuell kopieren: {uri}',
+
+  'login.title': 'Mit Spotify verbinden',
+  'login.text': 'Melde dich mit dem Spotify-Konto an, in dessen Playlists importiert werden soll.',
+  'login.button': 'Bei Spotify anmelden',
+  'login.changeClientId': 'Client ID ändern',
+  'login.demo': 'Demo ohne Spotify ausprobieren →',
+
+  'input.listTitle': 'Titelliste',
+  'input.placeholder': 'Eine Zeile pro Titel, z. B.\nQueen - Bohemian Rhapsody\nFalco – Rock Me Amadeus\nhttps://open.spotify.com/track/…\n\nAuch möglich: CSV/TSV mit Kopfzeile (Interpret, Titel), M3U, Spalten aus Excel.\nDatei einfach hierher ziehen.',
+  'input.openFile': 'Datei öffnen…',
+  'input.order': 'Reihenfolge',
+  'input.order.auto': 'automatisch erkennen',
+  'input.order.artistTitle': 'Interpret – Titel',
+  'input.order.titleArtist': 'Titel – Interpret',
+  'input.exampleList': 'Beispiel-Liste einfügen',
+  'input.parsed': ({ n, format, unusable }) => `${n} ${plural(n, 'Eintrag', 'Einträge')} erkannt (${format})${unusable ? ` · ${unusable} nicht verwendbar` : ''}`,
+  'input.fileLoaded': 'Datei „{name}“ geladen.',
+  'input.listLoaded': 'Liste „{name}“ geladen.',
+  'input.targetTitle': 'Ziel-Playlist',
+  'input.reloadPlaylists': 'Playlists neu laden',
+  'input.newName': 'Name der neuen Playlist',
+  'input.public': 'öffentlich',
+  'input.targetHint': 'Es werden nur Playlists angezeigt, die dir gehören oder bei denen du mitarbeitest.',
+  'input.start': 'Titel suchen',
+  'input.needList': 'Füge zuerst eine Titelliste ein.',
+  'input.needTarget': 'Wähle eine Ziel-Playlist (oder lege eine neue an).',
+  'input.needName': 'Gib einen Namen für die neue Playlist ein.',
+
+  'playlists.loading': 'Playlists werden geladen…',
+  'playlists.choose': '– Playlist auswählen –',
+  'playlists.new': '+ Neue Playlist erstellen …',
+  'playlists.option': ({ name, count, shared }) => `${name}${count != null ? ` (${count} Titel)` : ''}${shared ? ' · gemeinsam' : ''}`,
+  'playlists.notFound': 'Die Playlist {id} wurde nicht gefunden oder gehört dir nicht.',
+  'playlists.willCreate': 'Eine Playlist „{name}“ gibt es noch nicht – sie wird beim Import neu angelegt.',
+  'playlists.existingFailed': 'Die vorhandenen Titel der Playlist konnten nicht gelesen werden ({message}). Duplikate mit der Playlist werden nicht erkannt.',
+
+  'review.title': 'Prüfen & anpassen',
+  'review.back': '← Liste bearbeiten',
+  'review.target': 'Ziel-Playlist',
+  'review.newTargetInfo': 'Die neue Playlist wird erst beim Import angelegt.',
+  'review.filter.all': 'Alle',
+  'review.filter.sure': 'Sicher',
+  'review.filter.check': 'Bitte prüfen',
+  'review.filter.none': 'Unsicher / nicht gefunden',
+  'review.filter.dup': 'Duplikate',
+  'review.skipDuplicates': 'Duplikate überspringen (doppelt in der Liste oder schon in der Playlist)',
+  'review.empty': 'Keine Einträge in dieser Ansicht.',
+  'review.restored': 'Die letzte, noch nicht importierte Liste wurde wiederhergestellt.',
+  'review.discard': 'Verwerfen',
+  'review.backConfirm': 'Deine manuellen Änderungen gehen dabei verloren. Trotzdem zurück zur Liste?',
+  'review.searching': 'Suche läuft – du kannst schon prüfen und ändern.',
+  'review.footer': ({ count, total, imported }) => `${count} von ${total} ${plural(total, 'Eintrag', 'Einträgen')} ${plural(count, 'wird', 'werden')} hinzugefügt${imported ? ` · ${imported} bereits importiert` : ''}`,
+  'review.importButton': ({ count }) => `${count} Titel importieren`,
+  'review.importing': 'Importiere…',
+  'review.progress': '{done} von {total} gesucht',
+  'review.rateLimited': 'Spotify bremst – warte {seconds} s …',
+  'review.doneNotice': ({ sure, check, none }) => {
+    if (check + none) return `Suche abgeschlossen: ${sure} sicher, ${check} bitte prüfen, ${none} unsicher/nicht gefunden. Gelb und rot markierte Einträge bitte kontrollieren.`;
+    return sure === 1 ? 'Suche abgeschlossen: Der Eintrag wurde sicher zugeordnet.' : `Suche abgeschlossen: alle ${sure} Einträge sicher zugeordnet.`;
+  },
+  'review.needsName': 'Für den Import einen Namen für die neue Playlist eingeben.',
+
+  'row.include': 'Eintrag {n} importieren',
+  'row.change': 'Ändern',
+  'row.close': 'Schließen',
+  'row.spotifyLink': 'Spotify-Link',
+  'row.isrc': 'ISRC {isrc}',
+  'row.swapped': 'als „Titel – Interpret“ erkannt',
+  'row.freeText': 'Freitextsuche',
+  'row.waiting': 'Wartet…',
+  'row.searching': 'Suche…',
+  'row.noSelection': 'Kein Track ausgewählt',
+  'row.noMatch': 'Kein passender Track gefunden',
+  'row.openInSpotify': 'In Spotify öffnen',
+  'row.notPlayable': 'nicht abspielbar',
+  'row.imported': '✓ importiert',
+  'row.manual': 'manuell gewählt',
+  'row.scoreTitle': 'Übereinstimmung mit der Liste',
+  'row.notFound': 'nicht gefunden',
+  'row.inPlaylist': 'schon in Playlist',
+  'row.duplicate': 'doppelt in Liste',
+  'row.play': '▶ Anhören',
+  'row.stop': '■ Stopp',
+  'row.noSuggestions': 'Keine Vorschläge – suche unten selbst oder füge einen Spotify-Link ein.',
+  'row.searchPlaceholder': 'Suche, z. B. Interpret Titel',
+  'row.searchLabel': 'Spotify durchsuchen',
+  'row.search': 'Suchen',
+  'row.searchBusy': 'Sucht…',
+  'row.linkPlaceholder': '…oder Spotify-Link des richtigen Tracks einfügen',
+  'row.linkLabel': 'Spotify-Link',
+  'row.apply': 'Übernehmen',
+  'row.applyBusy': 'Lädt…',
+  'row.skip': 'Diesen Eintrag nicht importieren',
+  'row.player': 'Spotify-Player',
+  'row.noResults': 'Keine Treffer für „{q}“.',
+  'row.invalidLink': 'Das ist kein Spotify-Track-Link. Erwartet wird z. B. https://open.spotify.com/track/…',
+
+  'confirm.title': 'Import bestätigen',
+  'confirm.question': ({ count, name }) => `${count} Titel zur Playlist „${name}“ hinzufügen?`,
+  'confirm.questionNew': ({ count, name }) => `Neue Playlist „${name}“ anlegen und ${count} Titel hinzufügen?`,
+  'confirm.order': 'Die Titel werden in der Reihenfolge der Liste am Ende der Playlist angefügt.',
+  'confirm.unconfirmed': ({ n }) => `${n} davon ${plural(n, 'ist', 'sind')} nicht sicher zugeordnet (gelb/rot).`,
+  'confirm.duplicates': ({ n }) => (n === 1 ? '1 Duplikat wird übersprungen.' : `${n} Duplikate werden übersprungen.`),
+  'confirm.excluded': ({ n }) => (n === 1 ? '1 Eintrag ist abgewählt oder wurde nicht gefunden.' : `${n} Einträge sind abgewählt oder wurden nicht gefunden.`),
+  'confirm.cancel': 'Abbrechen',
+  'confirm.ok': 'Jetzt importieren',
+
+  'import.starting': 'Import startet …',
+  'import.creating': 'Playlist wird angelegt …',
+  'import.progress': '{count} von {total} hinzugefügt',
+  'import.description': 'Importiert mit PlaylistPusher',
+  'import.partial': ({ added, total }) => `${added} von ${total} Titeln wurden bereits hinzugefügt (grün markiert). `,
+  'import.failed': '{partial}Import abgebrochen: {message}',
+  'done.title': 'Import abgeschlossen',
+  'done.created': ({ name, count }) => `Die Playlist „${name}“ wurde angelegt und ${count} Titel ${plural(count, 'wurde', 'wurden')} hinzugefügt.`,
+  'done.added': ({ name, count }) => `${count} Titel ${plural(count, 'wurde', 'wurden')} zur Playlist „${name}“ hinzugefügt.`,
+  'done.open': 'Playlist in Spotify öffnen',
+  'done.new': 'Neue Liste importieren',
+
+  'error.sessionKept': 'Deine Liste und Änderungen bleiben erhalten.',
+  'parse.unsupportedLink': 'Nur Track-Links werden unterstützt (kein Album, keine Playlist).',
+  'auth.cancelled': 'Anmeldung bei Spotify abgebrochen.',
+  'auth.failed': 'Spotify-Anmeldung fehlgeschlagen: {error}',
+  'auth.invalidState': 'Anmeldung ungültig oder veraltet – bitte erneut anmelden.',
+  'auth.invalidClient': 'Die Client ID ist ungültig. Bitte in der Einrichtung prüfen.',
+  'auth.expired': 'Die Spotify-Sitzung ist abgelaufen – bitte neu anmelden.',
+  'auth.invalidRequest': 'Anmeldung fehlgeschlagen: {details}. Stimmt die Redirect-URI in der Spotify-App?',
+  'auth.notLoggedIn': 'Nicht bei Spotify angemeldet.',
+  'auth.rejected': 'Spotify hat die Anmeldung abgelehnt – bitte neu anmelden.',
+  'api.offline': 'Keine Verbindung zu Spotify – Internetverbindung prüfen.',
+  'api.quota': 'Das Anfrage-Kontingent der Spotify-App ist aufgebraucht – bitte später erneut versuchen.',
+  'api.forbidden': 'Zugriff verweigert (403){message}',
+  'api.forbiddenHint': ' – Ist dein Spotify-Konto in der App unter „User Management“ eingetragen und hat der App-Besitzer Premium?',
+  'api.notFound': 'Nicht gefunden (404){message}',
+  'api.error': 'Spotify-Fehler {status}{message}',
+
+  'demo.account': 'Demo-Konto',
+  'demo.trackMissing': 'Nicht gefunden (404): Track existiert nicht (Demo)',
+};
+
+const DICTIONARIES = { en, de };
+
+let current = 'en';
+try {
+  const saved = globalThis.localStorage?.getItem(LANG_KEY);
+  if (LANGUAGES.includes(saved)) current = saved;
+} catch {
+  // storage not available
+}
+
+export const getLanguage = () => current;
+
+/** Translates a key. String entries get {placeholders} replaced; function entries receive the params. */
+export function t(key, params = {}) {
+  const entry = DICTIONARIES[current][key] ?? en[key];
+  if (entry === undefined) return key;
+  if (typeof entry === 'function') return entry(params);
+  return entry.replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));
+}
+
+/** Applies translations to elements with data-i18n, data-i18n-html and data-i18n-{placeholder,title,aria-label}. */
+export function translatePage(root = document) {
+  root.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  // Only used for trusted strings from the dictionaries above
+  root.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  for (const attr of ['placeholder', 'title', 'aria-label']) {
+    root.querySelectorAll(`[data-i18n-${attr}]`).forEach((el) => el.setAttribute(attr, t(el.getAttribute(`data-i18n-${attr}`))));
+  }
+  document.documentElement.lang = current;
+  root.querySelectorAll('[data-lang]').forEach((el) => el.classList.toggle('active', el.dataset.lang === current));
+}
+
+export function setLanguage(lang) {
+  if (!LANGUAGES.includes(lang)) return false;
+  current = lang;
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // storage not available
+  }
+  translatePage();
+  return true;
+}

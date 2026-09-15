@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PlaylistPusher</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231db954'/%3E%3Cpath d='M22 18v28l24-14z' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true"></span>PlaylistPusher <span id="demo-badge" class="badge dup" hidden>Demo</span></div>
+    <div class="topbar-right">
+      <div class="account" id="account" hidden>
+        <span id="account-name" class="muted"></span>
+        <button class="link" id="btn-settings" data-i18n="account.clientId"></button>
+        <button class="link" id="btn-logout" data-i18n="account.logout"></button>
+      </div>
+      <div class="lang" role="group" aria-label="Language" data-i18n-aria-label="lang.label">
+        <button type="button" data-lang="en" lang="en">EN</button>
+        <button type="button" data-lang="de" lang="de">DE</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="notice" class="notice" role="status" hidden>
+      <span id="notice-text"></span>
+      <button class="link" id="notice-action" hidden></button>
+      <button class="link" id="notice-close" aria-label="Dismiss" data-i18n-aria-label="notice.dismiss">✕</button>
+    </div>
+
+    <section id="view-loading" class="card narrow center">
+      <p class="muted" data-i18n="loading">Loading…</p>
+    </section>
+
+    <section id="view-setup" class="card narrow" hidden>
+      <h1 data-i18n="setup.title"></h1>
+      <p data-i18n="setup.intro"></p>
+      <ol class="steps">
+        <li data-i18n-html="setup.step1"></li>
+        <li>
+          <span data-i18n-html="setup.step2"></span>
+          <div class="copy-row"><code id="redirect-uri"></code><button type="button" class="small" id="btn-copy-redirect" data-i18n="setup.copy"></button></div>
+        </li>
+        <li data-i18n-html="setup.step3"></li>
+        <li data-i18n-html="setup.step4"></li>
+      </ol>
+      <form id="form-setup" class="row">
+        <input id="input-client-id" data-i18n-placeholder="setup.placeholder" data-i18n-title="setup.pattern" autocomplete="off" spellcheck="false" required pattern="\s*[0-9a-fA-F]{32}\s*">
+        <button class="primary" type="submit" data-i18n="setup.save"></button>
+      </form>
+      <p class="hint" data-i18n-html="setup.hint"></p>
+      <p class="hint"><a href="?demo" data-i18n="setup.demo"></a></p>
+      <div class="how">
+        <h3 data-i18n="how.title"></h3>
+        <ol><li data-i18n="how.1"></li><li data-i18n="how.2"></li><li data-i18n="how.3"></li><li data-i18n="how.4"></li></ol>
+      </div>
+    </section>
+
+    <section id="view-login" class="card narrow" hidden>
+      <h1 data-i18n="login.title"></h1>
+      <p data-i18n="login.text"></p>
+      <div class="row">
+        <button class="primary big" id="btn-login" data-i18n="login.button"></button>
+        <button id="btn-setup-again" data-i18n="login.changeClientId"></button>
+      </div>
+      <p class="hint"><a href="?demo" data-i18n="login.demo"></a></p>
+      <div class="how">
+        <h3 data-i18n="how.title"></h3>
+        <ol><li data-i18n="how.1"></li><li data-i18n="how.2"></li><li data-i18n="how.3"></li><li data-i18n="how.4"></li></ol>
+      </div>
+    </section>
+
+    <section id="view-input" class="card" hidden>
+      <div class="input-grid">
+        <div class="input-col">
+          <h2><span class="step">1</span> <span data-i18n="input.listTitle"></span></h2>
+          <div id="dropzone" class="dropzone">
+            <textarea id="input-list" rows="12" spellcheck="false" data-i18n-placeholder="input.placeholder"></textarea>
+          </div>
+          <div class="row wrap">
+            <label class="button file-btn"><input type="file" id="input-file" accept=".txt,.text,.csv,.tsv,.m3u,.m3u8,text/plain,text/csv"><span data-i18n="input.openFile"></span></label>
+            <label class="inline"><span data-i18n="input.order"></span>
+              <select id="select-order">
+                <option value="auto" data-i18n="input.order.auto"></option>
+                <option value="artist-title" data-i18n="input.order.artistTitle"></option>
+                <option value="title-artist" data-i18n="input.order.titleArtist"></option>
+              </select>
+            </label>
+            <span id="parse-info" class="muted"></span>
+            <button class="link" id="btn-demo-list" data-i18n="input.exampleList" hidden></button>
+          </div>
+        </div>
+
+        <div class="input-col target-col">
+          <h2><span class="step">2</span> <label for="select-playlist" data-i18n="input.targetTitle"></label></h2>
+          <select id="select-playlist"></select>
+          <div id="new-playlist" class="stack" hidden>
+            <input id="input-new-name" data-i18n-placeholder="input.newName" maxlength="100">
+            <label class="check"><input type="checkbox" id="input-new-public"> <span data-i18n="input.public"></span></label>
+          </div>
+          <p class="hint" data-i18n="input.targetHint"></p>
+          <div><button class="link" id="btn-reload-playlists" data-i18n="input.reloadPlaylists"></button></div>
+          <div class="start-box">
+            <button class="primary big" id="btn-match" data-i18n="input.start" disabled></button>
+            <p class="hint" id="start-hint"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-review" hidden>
+      <div class="card review-head">
+        <div class="review-title">
+          <h2><span class="step">3</span> <span data-i18n="review.title"></span></h2>
+          <button class="link" id="btn-back" data-i18n="review.back"></button>
+        </div>
+        <div class="target-row">
+          <label for="review-playlist" class="target-label" data-i18n="review.target"></label>
+          <select id="review-playlist" class="grow"></select>
+          <input id="review-new-name" class="grow" data-i18n-placeholder="input.newName" maxlength="100" hidden>
+          <label class="check" id="review-new-public-wrap" hidden><input type="checkbox" id="review-new-public"> <span data-i18n="input.public"></span></label>
+        </div>
+        <p class="hint" id="review-target-hint" data-i18n="review.newTargetInfo" hidden></p>
+        <div id="progress" class="progress" hidden>
+          <div class="bar"><span id="progress-bar"></span></div>
+          <span id="progress-text" class="muted"></span>
+        </div>
+        <div class="chips" id="filters">
+          <button data-filter="all" class="chip active"><span data-i18n="review.filter.all"></span> <b id="count-all">0</b></button>
+          <button data-filter="sure" class="chip sure"><span data-i18n="review.filter.sure"></span> <b id="count-sure">0</b></button>
+          <button data-filter="check" class="chip check"><span data-i18n="review.filter.check"></span> <b id="count-check">0</b></button>
+          <button data-filter="none" class="chip none"><span data-i18n="review.filter.none"></span> <b id="count-none">0</b></button>
+          <button data-filter="dup" class="chip dup"><span data-i18n="review.filter.dup"></span> <b id="count-dup">0</b></button>
+        </div>
+        <label class="check"><input type="checkbox" id="input-skip-dups" checked> <span data-i18n="review.skipDuplicates"></span></label>
+      </div>
+
+      <ol id="rows" class="rows"></ol>
+      <p id="rows-empty" class="muted center" data-i18n="review.empty" hidden></p>
+
+      <div class="footer-bar">
+        <span id="footer-info" class="muted"></span>
+        <button class="primary big" id="btn-import" disabled></button>
+      </div>
+    </section>
+
+    <section id="view-done" class="card narrow" hidden>
+      <h1 data-i18n="done.title"></h1>
+      <p id="done-text"></p>
+      <div class="row">
+        <a class="button primary" id="done-open" target="_blank" rel="noopener" data-i18n="done.open"></a>
+        <button id="btn-new" data-i18n="done.new"></button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dialog-confirm">
+    <form method="dialog">
+      <h2 data-i18n="confirm.title"></h2>
+      <p id="confirm-text"></p>
+      <ul id="confirm-details" class="muted"></ul>
+      <div class="row end">
+        <button value="cancel" data-i18n="confirm.cancel"></button>
+        <button value="ok" class="primary" id="btn-confirm-ok" data-i18n="confirm.ok"></button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

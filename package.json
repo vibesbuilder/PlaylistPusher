@@ -1,0 +1,14 @@
+{
+  "name": "playlistpusher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Review a track list and import it into a Spotify playlist",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

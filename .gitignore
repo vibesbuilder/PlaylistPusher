@@ -1,0 +1,10 @@
+# Dependencies and caches
+node_modules/
+__pycache__/
+*.pyc
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
