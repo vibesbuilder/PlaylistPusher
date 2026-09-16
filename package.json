@@ -4,6 +4,14 @@
   "private": true,
   "description": "Review a track list and import it into a Spotify playlist",
   "license": "MIT",
+  "homepage": "https://github.com/vibesbuilder/PlaylistPusher#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vibesbuilder/PlaylistPusher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vibesbuilder/PlaylistPusher/issues"
+  },
   "type": "module",
   "scripts": {
     "test": "node --test"
