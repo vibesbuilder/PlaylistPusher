@@ -29,7 +29,14 @@ const state = {
 
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
-  set(key, value) { try { localStorage.setItem(key, value); } catch { /* not available */ } },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch {
+      return false; // not available or full
+    }
+  },
   del(key) { try { localStorage.removeItem(key); } catch { /* not available */ } },
 };
 
@@ -37,10 +44,16 @@ const storage = {
 
 const sessionKey = () => (state.demo ? 'pp.session.demo' : 'pp.session');
 const TRANSIENT_KEYS = new Set(['busy', 'playing', 'dup']);
+let saveWarned = false;
 
 function saveNow() {
   if (!state.session) return storage.del(sessionKey());
-  storage.set(sessionKey(), JSON.stringify(state.session, (key, value) => (TRANSIENT_KEYS.has(key) ? undefined : value)));
+  const saved = storage.set(sessionKey(), JSON.stringify(state.session, (key, value) => (TRANSIENT_KEYS.has(key) ? undefined : value)));
+  // Very long lists can exceed the browser storage; warn once so the tab is not closed before importing
+  if (!saved && !saveWarned) {
+    saveWarned = true;
+    notice(t('app.saveFailed'), { type: 'error' });
+  }
 }
 const save = debounce(saveNow, 300);
 

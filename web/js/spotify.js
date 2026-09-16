@@ -1,5 +1,5 @@
 // Spotify: login (Authorization Code with PKCE) and Web API calls with request pacing,
-// token refresh, rate-limit/quota handling and cancellation.
+// token refresh, rate-limit/quota handling, cancellation and request statistics.
 import { t } from './i18n.js';
 
 const AUTH_URL = 'https://accounts.spotify.com/authorize';
@@ -8,6 +8,8 @@ const API_URL = 'https://api.spotify.com/v1';
 const SCOPES = ['playlist-read-private', 'playlist-read-collaborative', 'playlist-modify-public', 'playlist-modify-private'];
 const TOKEN_KEY = 'pp.token';
 const PKCE_KEY = 'pp.pkce';
+const USAGE_KEY = 'pp.usage';
+const QUOTA_STOPS_KEY = 'pp.quotaStops';
 
 // Development Mode apps share a small request quota per developer account,
 // so requests are spread out and rate limits are retried only a few times.
@@ -16,6 +18,10 @@ const MAX_INTERVAL_MS = 3000;
 const MAX_RATE_LIMIT_RETRIES = 3;
 const MAX_WAIT_MS = 60000;
 const SEARCH_CACHE_SIZE = 500;
+
+// Request statistics are kept in 10-minute buckets for 48 hours
+const BUCKET_MS = 10 * 60 * 1000;
+const USAGE_KEEP_MS = 48 * 60 * 60 * 1000;
 
 export class AuthError extends Error {
   name = 'AuthError';
@@ -62,6 +68,42 @@ export function sleep(ms, signal) {
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
+
+// ---------- Request statistics (to find out Spotify's limits) ----------
+
+function recordRequest() {
+  const usage = store.get(USAGE_KEY) || {};
+  const now = Date.now();
+  const bucket = Math.floor(now / BUCKET_MS) * BUCKET_MS;
+  usage[bucket] = (usage[bucket] || 0) + 1;
+  for (const key of Object.keys(usage)) if (Number(key) < now - USAGE_KEEP_MS) delete usage[key];
+  store.set(USAGE_KEY, usage);
+}
+
+/** Requests sent to the Spotify Web API from this browser: about the last hour and the last 24 hours. */
+export function requestUsage() {
+  const usage = store.get(USAGE_KEY) || {};
+  const now = Date.now();
+  const since = (ms) => Object.entries(usage).reduce((sum, [bucket, n]) => (Number(bucket) + BUCKET_MS > now - ms ? sum + n : sum), 0);
+  return { hour: since(60 * 60 * 1000), day: since(24 * 60 * 60 * 1000) };
+}
+
+/** The last time Spotify reported the request quota as used up: { at, day } or null. */
+export function lastQuotaStop() {
+  const stops = store.get(QUOTA_STOPS_KEY) || [];
+  return stops.at(-1) || null;
+}
+
+function recordQuotaStop() {
+  const stops = store.get(QUOTA_STOPS_KEY) || [];
+  const last = stops.at(-1);
+  // Several requests in a row may hit the quota; count one stop per 10 minutes
+  if (last && Date.now() - last.at < BUCKET_MS) return;
+  stops.push({ at: Date.now(), day: requestUsage().day });
+  store.set(QUOTA_STOPS_KEY, stops.slice(-20));
+}
+
+// ---------- Login ----------
 
 function randomString(length) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -162,6 +204,8 @@ function apiErrorText(status, data) {
 const retryText = (seconds) => (seconds ? t('api.retryIn', { minutes: Math.max(1, Math.ceil(seconds / 60)) }) : t('api.retryLater'));
 const withContext = (context, message) => (context ? `${t(context)}: ${message}` : message);
 
+// ---------- Web API client ----------
+
 export class SpotifyClient {
   constructor(clientId) {
     this.clientId = clientId;
@@ -170,6 +214,7 @@ export class SpotifyClient {
     this.interval = MIN_INTERVAL_MS;
     this.nextSlot = 0;
     this.searchCache = new Map();
+    this.requestCount = 0; // requests sent to the Web API since the page was loaded
   }
 
   async accessToken(forceRefresh = false) {
@@ -217,6 +262,8 @@ export class SpotifyClient {
 
       let res;
       try {
+        this.requestCount++;
+        recordRequest();
         res = await fetch(url, {
           method,
           headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
@@ -246,6 +293,7 @@ export class SpotifyClient {
         const retryAfter = Number(res.headers.get('Retry-After')) || null;
         this.logFailure(method, url, res.status, data);
         if (data?.error?.reason === 'QUOTA_EXCEEDED' || /quota/i.test(JSON.stringify(data ?? ''))) {
+          recordQuotaStop();
           throw new ApiError(429, withContext(context, `${t('api.quota')} ${retryText(retryAfter)}`), { fatal: true, retryAfter });
         }
         const wait = retryAfter ? retryAfter * 1000 : 5000 * (rateLimitRetries + 1);
@@ -276,7 +324,7 @@ export class SpotifyClient {
   }
 
   logFailure(method, url, status, data) {
-    console.warn(`[Spotify] ${method} ${url.replace(API_URL, '').split('?')[0]} → ${status}`, data?.error ?? data);
+    console.warn(`[Spotify] ${method} ${url.replace(API_URL, '').split('?')[0]} → ${status} (request no. ${this.requestCount})`, data?.error ?? data);
   }
 
   me() {

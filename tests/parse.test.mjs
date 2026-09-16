@@ -77,6 +77,24 @@ test('M3U with EXTINF and plain file paths', () => {
   assert.deepEqual([entries[1].artist, entries[1].title], ['Falco', 'Rock Me Amadeus']);
 });
 
+test('badly formatted lines: underscores, spaces, durations, leading zeros', () => {
+  const expected = { artist: 'Queen', title: 'Bohemian Rhapsody' };
+  assert.deepEqual(parseLine('Queen_-_Bohemian_Rhapsody'), expected);
+  assert.deepEqual(parseLine('Queen   -   Bohemian   Rhapsody'), expected);
+  assert.deepEqual(parseLine('Queen - Bohemian Rhapsody'), expected);
+  assert.deepEqual(parseLine('Queen - Bohemian Rhapsody (5:55)'), expected);
+  assert.deepEqual(parseLine('Queen - Bohemian Rhapsody 05:55'), expected);
+  assert.deepEqual(parseLine('01 Queen - Bohemian Rhapsody'), expected);
+  assert.deepEqual(parseLine('07 - Queen - Bohemian Rhapsody'), expected);
+  assert.deepEqual(parseLine('311 - Amber'), { artist: '311', title: 'Amber' });
+  assert.deepEqual(parseLine('50 Cent - In Da Club'), { artist: '50 Cent', title: 'In Da Club' });
+});
+
+test('umlauts broken by a wrong encoding are repaired, correct text stays untouched', () => {
+  const { entries } = parseList('Die Ã„rzte - Schrei nach Liebe\nMÃ¶tley CrÃ¼e - Kickstart My Heart\nFalco â€“ Jeanny\nGroß“ bleibt');
+  assert.deepEqual(entries.map((e) => e.artist ?? e.query), ['Die Ärzte', 'Mötley Crüe', 'Falco', 'Groß“ bleibt']);
+});
+
 test('files in UTF-8 (BOM), UTF-16 and Windows-1252 are decoded correctly', () => {
   const text = 'Die Ärzte - Schrei nach Liebe';
   const utf8 = new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode(text)]);

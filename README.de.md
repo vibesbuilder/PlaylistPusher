@@ -10,7 +10,7 @@ PlaylistPusher ist eine kleine lokale Web-App für Radiosender, DJs und alle, di
 
 1. Liste einfügen oder Datei öffnen, dann die Ziel-Playlist wählen (oder eine neue anlegen)
 2. Jeder Eintrag wird auf Spotify gesucht – die Treffer erscheinen **live** und sind nach Sicherheit farblich markiert
-3. Falsche Treffer pro Titel korrigieren: Alternative wählen, neu suchen, Spotify-Link einfügen, reinhören oder überspringen
+3. Falsche Treffer pro Titel korrigieren: Alternative wählen, neu suchen, Spotify-Link einfügen, reinhören oder überspringen – und die Reihenfolge per Drag & Drop ändern
 4. Erst nach **Bestätigung** werden die Titel hinzugefügt
 
 Die Oberfläche gibt es auf **Englisch und Deutsch** (Umschalter oben rechts).
@@ -20,8 +20,11 @@ Die Oberfläche gibt es auf **Englisch und Deutsch** (Umschalter oben rechts).
 ## Funktionen
 
 - **Flexible Eingabe:** Zeilen „Interpret – Titel“ (auch mit Uhrzeit oder Nummer davor), CSV/TSV mit Kopfzeile, aus Excel kopierte Spalten, M3U/M3U8, Spotify-Links, ISRC-Codes
+- **Kommt mit unsauberen Listen zurecht:** kaputte Umlaute, Unterstriche statt Leerzeichen, Tracknummern und Laufzeiten werden automatisch bereinigt
 - **Zuverlässiger Abgleich:** unterschiedliche Schreibweisen und Umlaute, „feat.“-Angaben, vertauschte Reihenfolge, Radio Edit oder Albumversion; Karaoke-, Tribute- und nicht gewünschte Live-Versionen werden abgewertet
 - **Duplikaterkennung** innerhalb der Liste und gegenüber der Ziel-Playlist
+- **Eigene Reihenfolge:** Einträge per Drag & Drop in die Reihenfolge bringen, in der sie hinzugefügt werden
+- **Hält Spotifys Limits ein:** verteilte Anfragen, Abbrechen und Fortsetzen jederzeit, Anfragestatistik
 - **Nichts geht verloren:** Der Prüfstand wird im Browser gespeichert und nach Neuladen oder erneuter Anmeldung wiederhergestellt
 - **Läuft lokal:** keine Pakete, kein Cloud-Dienst – Python liefert die Oberfläche aus, der Browser spricht direkt mit der Spotify Web API
 - **Demo-Modus** zum Ausprobieren ohne Spotify-Konto
@@ -73,10 +76,11 @@ Das Konsolenfenster muss offen bleiben, solange PlaylistPusher benutzt wird; bee
 
 1. **Titelliste** – einfügen, *Datei öffnen…* klicken oder eine Datei ins Fenster ziehen
 2. **Ziel-Playlist** – neben der Liste eine eigene Playlist wählen oder *+ Neue Playlist erstellen*. Befüllt werden können nur Playlists, die dir gehören oder bei denen du mitarbeitest.
-3. **Titel suchen** – die Treffer erscheinen schon während der Suche. Die Ziel-Playlist lässt sich oben in der Prüfansicht noch ändern.
+3. **Titel suchen** – die Treffer erscheinen schon während der Suche. *Suche abbrechen* stoppt sie, *Suche fortsetzen* macht später weiter. Die Ziel-Playlist lässt sich oben in der Prüfansicht noch ändern.
 4. **Prüfen** – grün: sicher (≥ 85 %) · gelb: bitte prüfen (60–85 %) · rot: unsicher oder nicht gefunden (< 60 %, wird nicht automatisch übernommen)
 5. **Ändern** – öffnet Alternativen, ein Suchfeld, ein Feld für einen Spotify-Link, einen Player (*▶ Anhören*) und *Diesen Eintrag nicht importieren*
-6. **Importieren** – zeigt eine Zusammenfassung; hinzugefügt wird erst nach Bestätigung
+6. **Reihenfolge** – einen Eintrag am Griff ⠿ ziehen, um die Reihenfolge beim Hinzufügen zu ändern. Ist der Griff angewählt, verschieben auch die Pfeiltasten, Bild ↑/↓ sowie Pos1/Ende den Eintrag. *Ursprüngliche Reihenfolge wiederherstellen* macht alle Verschiebungen rückgängig.
+7. **Importieren** – zeigt eine Zusammenfassung; hinzugefügt wird erst nach Bestätigung
 
 ### Kommandozeile
 
@@ -99,7 +103,7 @@ Mit Liste **und** Playlist startet die Suche sofort. Die Playlist kann als Name,
 | Format | Beispiel |
 |---|---|
 | Ein Titel pro Zeile | `Queen - Bohemian Rhapsody` (Trenner `-`, `–`, `—`, `\|`, ` / `) |
-| Mit Uhrzeit, Datum oder Nummer davor | `14:03:22 Falco – Rock Me Amadeus`, `12. Wanda - Bologna` |
+| Mit Uhrzeit, Datum oder Nummer davor | `14:03:22 Falco – Rock Me Amadeus`, `12. Wanda - Bologna`, `01 Wanda - Bologna` |
 | Titel – Interpret | wird automatisch erkannt oder unter *Reihenfolge* eingestellt |
 | CSV/TSV mit Kopfzeile | Spalten `Interpret`/`Artist`, `Titel`/`Title`/`Track`/`Song`, optional `Album`, `Dauer`, `ISRC`, `Spotify URI` (kompatibel mit Exportify-Exporten) |
 | Aus Excel kopierte Spalten | Interpret- und Titelspalte markieren, kopieren, einfügen |
@@ -107,6 +111,8 @@ Mit Liste **und** Playlist startet die Suche sofort. Die Playlist kann als Name,
 | Spotify-Links und ISRC | `https://open.spotify.com/track/…`, `spotify:track:…`, `USRC17607839` |
 
 Leerzeilen und Zeilen mit `#` oder `//` am Anfang werden ignoriert. Dateien in UTF-8, UTF-16 und Windows-1252 (ANSI) werden automatisch erkannt.
+
+Unsaubere Zeilen werden vor der Suche bereinigt: kaputte Umlaute wie `Ã¤` werden zu `ä`, Unterstriche gelten als Leerzeichen (`Queen_-_Bohemian_Rhapsody`), und Laufzeiten am Zeilenende (`3:55`) werden ignoriert. Zeilen ohne erkennbares Trennzeichen werden als Freitext gesucht.
 
 ### Demo
 
@@ -119,6 +125,9 @@ Spotify begrenzt die Zahl der Anfragen für Apps im Development Mode. Das Limit 
 - **Suche abbrechen** stoppt die Suche sofort; die bisherigen Treffer bleiben erhalten.
 - Ist das Limit von Spotify erreicht, stoppt die Suche von selbst und behält ihre Treffer.
 - **Suche fortsetzen** macht jederzeit mit den übrigen Einträgen weiter (und wiederholt fehlgeschlagene Suchen).
+- Die Prüfansicht zeigt, wie viele Anfragen gesendet wurden – seit dem Laden der Seite, in der letzten Stunde und in den letzten 24 Stunden – und wann Spotify das Kontingent zuletzt als aufgebraucht gemeldet hat. So lassen sich die Limits für das eigene Konto herausfinden.
+
+Tipp für lange Listen: als Ziel *+ Neue Playlist erstellen* wählen. Das Lesen einer bestehenden Playlist (für die Duplikatprüfung) kostet eine Anfrage pro 50 Titel.
 
 ## Fehlerbehebung
 
@@ -131,6 +140,7 @@ Spotify begrenzt die Zahl der Anfragen für Apps im Development Mode. Das Limit 
 | *Zugriff verweigert (403): Insufficient client scope* | Ab- und wieder anmelden und die aktuelle Version von PlaylistPusher verwenden. |
 | *Zugriff verweigert (403)* | Das Spotify-Konto in der Spotify-App unter *User Management* eintragen; der App-Besitzer braucht Premium. |
 | *Die Spotify-Sitzung ist abgelaufen* | Neu anmelden (Spotify verlangt das spätestens alle 6 Monate). Die Liste bleibt erhalten. |
+| *Der Arbeitsstand konnte nicht im Browser gespeichert werden* | Die Liste ist zu groß für den Browser-Speicher. Den Tab bis zum Import offen lassen. |
 
 Fehlermeldungen nennen den Schritt, der fehlgeschlagen ist (z. B. *Suche: …* oder *Playlists laden: …*). Details zu fehlgeschlagenen Anfragen stehen zusätzlich in der Browser-Konsole (F12).
 
@@ -138,7 +148,7 @@ Fehlermeldungen nennen den Schritt, der fehlgeschlagen ist (z. B. *Suche: …* o
 
 - Der lokale Server lauscht nur auf `127.0.0.1` und ist von anderen Rechnern aus nicht erreichbar.
 - Die Anmeldung nutzt OAuth mit PKCE – ein Client Secret wird weder benötigt noch gespeichert.
-- Zugangstoken und Prüfstand liegen nur im Browser (localStorage von `http://127.0.0.1:8138`) und werden nur an Spotify gesendet.
+- Zugangstoken, Prüfstand und Anfragestatistik liegen nur im Browser (localStorage von `http://127.0.0.1:8138`); Zugangstoken werden nur an Spotify gesendet.
 
 ## Entwicklung
 

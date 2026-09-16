@@ -229,11 +229,25 @@ dialog h2 { margin-top: 0; }
   .input-grid { grid-template-columns: 1fr; }
 }
 
+/* Changing the order by drag and drop */
+.item { position: relative; }
+.item-line { grid-template-columns: 18px auto 28px minmax(0, 0.9fr) minmax(0, 1.4fr) 132px auto; }
+.drag { cursor: grab; color: var(--muted); user-select: none; font-size: 16px; line-height: 1; padding: 4px 1px; border-radius: 4px; text-align: center; }
+.drag[draggable="true"]:hover { color: var(--text); background: var(--hover); }
+.drag[draggable="true"]:active { cursor: grabbing; }
+.drag:not([draggable]) { cursor: default; opacity: 0.3; }
+.item.dragging { opacity: 0.45; }
+.item.drop-before::before, .item.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--accent); }
+.item.drop-before::before { top: -6px; }
+.item.drop-after::after { bottom: -6px; }
+.order-hint { display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: baseline; }
+#usage-info { margin-top: 4px; font-variant-numeric: tabular-nums; }
+
 @media (max-width: 760px) {
-  .item-line { grid-template-columns: auto 22px minmax(0, 1fr) auto; }
-  .item-line .match { grid-column: 2 / -1; grid-row: 2; }
-  .item-line .badges { grid-column: 4; grid-row: 1; }
-  .item-line .toggle { grid-column: 4; grid-row: 2; }
+  .item-line { grid-template-columns: 18px auto 22px minmax(0, 1fr) auto; }
+  .item-line .match { grid-column: 3 / 5; grid-row: 2; }
+  .item-line .badges { grid-column: 5; grid-row: 1; }
+  .item-line .toggle { grid-column: 5; grid-row: 2; }
   .cand { grid-template-columns: auto 40px minmax(0, 1fr) auto; }
   .cand .play { display: none; }
 }

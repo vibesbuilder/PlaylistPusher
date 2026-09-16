@@ -1,12 +1,16 @@
-// Review view: renders the rows, lets the user pick alternatives, search manually or paste a link.
+// Review view: renders the rows, lets the user pick alternatives, search manually, paste a link
+// and change the order of the rows by drag and drop or keyboard.
 import { SCORE_SURE, SCORE_ACCEPT, scoreTrack } from './match.js';
 import { parseSpotifyTrackId } from './parse.js';
+import { requestUsage, lastQuotaStop } from './spotify.js';
 import { t, getLanguage } from './i18n.js';
 import { $, $$, esc, formatDuration } from './ui.js';
 
 let ctx = null; // { state, save, notice, onError }
 const elements = new Map(); // row.id -> <li>
 const signatures = new Map(); // row.id -> last rendered state
+let dragId = null; // row.id of the row being dragged
+let dropTarget = null; // { id, position: 'before' | 'after' }
 
 const round = (x) => Math.round(x * 1000) / 1000;
 
@@ -30,6 +34,8 @@ const selectedCand = (row) => row.candidates.find((c) => c.track.id === row.sele
 export const selectedTrack = (row) => selectedCand(row)?.track || null;
 export const touch = (row) => { row.rev = (row.rev || 0) + 1; };
 const notSearched = (row) => row.status === 'pending' || row.status === 'searching';
+const rowById = (id) => ctx.state.session.rows.find((r) => r.id === id);
+const rowOf = (el) => rowById(Number(el.closest('li[data-id]')?.dataset.id));
 
 export function rowClass(row) {
   if (notSearched(row)) return 'pending';
@@ -37,6 +43,10 @@ export function rowClass(row) {
   if (!c) return 'none';
   if (row.manual || c.score >= SCORE_SURE) return 'sure';
   return c.score >= SCORE_ACCEPT ? 'check' : 'none';
+}
+
+function matchesFilter(row, filter = ctx.state.session.filter || 'all') {
+  return filter === 'all' || (filter === 'dup' ? !!row.dup : rowClass(row) === filter);
 }
 
 function computeDuplicates() {
@@ -62,6 +72,14 @@ export function initReview(context) {
   list.addEventListener('change', onChange);
   list.addEventListener('click', onClick);
   list.addEventListener('submit', onSubmit);
+  list.addEventListener('keydown', onHandleKey);
+  list.addEventListener('dragstart', onDragStart);
+  list.addEventListener('dragover', onDragOver);
+  list.addEventListener('drop', onDrop);
+  list.addEventListener('dragend', onDragEnd);
+  // Scroll while dragging near the edges, also above the sticky header and footer
+  document.addEventListener('dragover', autoScroll);
+  $('#btn-restore-order').addEventListener('click', restoreOrder);
   $('#filters').addEventListener('click', (e) => {
     const button = e.target.closest('[data-filter]');
     if (!button) return;
@@ -84,7 +102,7 @@ export function renderAll() {
   refresh();
 }
 
-/** Updates duplicates, changed rows, filters and the summary. */
+/** Updates duplicates, changed rows, order, filters and the summary. */
 export function refresh() {
   const { session, importing, matching } = ctx.state;
   computeDuplicates();
@@ -92,14 +110,16 @@ export function refresh() {
   const filter = session.filter || 'all';
   let visible = 0;
 
-  for (const row of session.rows) {
+  session.rows.forEach((row, index) => {
     let el = elements.get(row.id);
     if (!el) {
       el = document.createElement('li');
       el.dataset.id = row.id;
-      list.append(el);
       elements.set(row.id, el);
     }
+    // Keep the DOM in the order of the rows, which can be changed by drag and drop
+    if (list.children[index] !== el) list.insertBefore(el, list.children[index] || null);
+
     const sig = `${row.rev}|${row.dup}|${session.skipDuplicates}|${importing}|${matching}|${getLanguage()}`;
     if (signatures.get(row.id) !== sig) {
       // Keep what the user typed into the search/link fields
@@ -109,11 +129,18 @@ export function refresh() {
       if (typed.q != null && el.querySelector('input[name=q]')) el.querySelector('input[name=q]').value = typed.q;
       if (typed.link && el.querySelector('input[name=link]')) el.querySelector('input[name=link]').value = typed.link;
       signatures.set(row.id, sig);
+      el.dataset.pos = '';
     }
-    const show = filter === 'all' || (filter === 'dup' ? !!row.dup : rowClass(row) === filter);
+    // The number shows the current position; updated without re-rendering the row
+    if (el.dataset.pos !== String(index + 1)) {
+      el.dataset.pos = index + 1;
+      el.querySelector('.num').textContent = index + 1;
+      el.querySelector('[data-act=include]').setAttribute('aria-label', t('row.include', { n: index + 1 }));
+    }
+    const show = matchesFilter(row, filter);
     el.hidden = !show;
     if (show) visible++;
-  }
+  });
 
   $('#rows-empty').hidden = visible > 0 || !session.rows.length;
   $$('#filters [data-filter]').forEach((b) => b.classList.toggle('active', b.dataset.filter === filter));
@@ -150,6 +177,28 @@ function updateSummary() {
   const resume = $('#btn-resume');
   resume.hidden = matching || importing || retryable === 0;
   resume.textContent = t('review.resume', { n: retryable });
+
+  $('#btn-restore-order').hidden = importing || session.rows.every((r, i) => r.id === i);
+  renderUsage();
+}
+
+/** Shows how many requests were sent to Spotify – helps to find out the limits of the request quota. */
+function renderUsage() {
+  const el = $('#usage-info');
+  const { client, demo } = ctx.state;
+  if (demo || !client) {
+    el.hidden = true;
+    return;
+  }
+  const usage = requestUsage();
+  let text = t('review.usage', { session: client.requestCount ?? 0, hour: usage.hour, day: usage.day });
+  const stop = lastQuotaStop();
+  if (stop) {
+    const time = new Date(stop.at).toLocaleString(getLanguage(), { dateStyle: 'short', timeStyle: 'short' });
+    text += t('review.lastQuotaStop', { time, day: stop.day });
+  }
+  el.textContent = text;
+  el.hidden = false;
 }
 
 function itemClasses(row) {
@@ -162,9 +211,13 @@ function rowHtml(row) {
   // Entries that were not searched yet can be changed manually as long as no search is running
   const busy = row.status === 'searching' || (row.status === 'pending' && ctx.state.matching);
   const locked = busy || row.imported || ctx.state.importing;
+  const handle = ctx.state.importing
+    ? '<span class="drag" aria-hidden="true">⠿</span>'
+    : `<span class="drag" role="button" tabindex="0" draggable="true" data-act="drag" title="${esc(t('row.dragTitle'))}" aria-label="${esc(t('row.dragLabel', { name: row.entry.raw }))}">⠿</span>`;
   return `<div class="item-line">
-    <input type="checkbox" data-act="include" aria-label="${esc(t('row.include', { n: row.id + 1 }))}" ${row.include && track ? 'checked' : ''} ${locked || !track ? 'disabled' : ''}>
-    <span class="num">${row.id + 1}</span>
+    ${handle}
+    <input type="checkbox" data-act="include" ${row.include && track ? 'checked' : ''} ${locked || !track ? 'disabled' : ''}>
+    <span class="num"></span>
     <div class="source"><div class="raw">${esc(row.entry.raw)}</div>${sourceInfo(row)}</div>
     <div class="match">${matchInfo(row, track)}</div>
     <div class="badges">${badgesHtml(row)}</div>
@@ -194,9 +247,9 @@ function trackHtml(track, withLink) {
   const year = (track.album.release_date || '').slice(0, 4);
   const artists = track.artists.map((a) => a.name).join(', ');
   const sub = [artists, track.album.name + (year ? ` (${year})` : ''), formatDuration(track.duration_ms)].filter(Boolean).join(' · ');
-  const img = track.album.image ? `<img class="cover" src="${esc(track.album.image)}" alt="" loading="lazy">` : '<span class="cover empty">♪</span>';
+  const img = track.album.image ? `<img class="cover" src="${esc(track.album.image)}" alt="" loading="lazy" draggable="false">` : '<span class="cover empty">♪</span>';
   const name = withLink && !ctx.state.demo
-    ? `<a href="https://open.spotify.com/track/${esc(track.id)}" target="_blank" rel="noopener" title="${esc(t('row.openInSpotify'))}">${esc(track.name)}</a>`
+    ? `<a href="https://open.spotify.com/track/${esc(track.id)}" target="_blank" rel="noopener" draggable="false" title="${esc(t('row.openInSpotify'))}">${esc(track.name)}</a>`
     : esc(track.name);
   const explicit = track.explicit ? ' <span class="badge dup" title="Explicit">E</span>' : '';
   const blocked = track.is_playable === false ? ` <span class="badge none">${esc(t('row.notPlayable'))}</span>` : '';
@@ -240,8 +293,6 @@ function panelHtml(row) {
   </div>`;
 }
 
-const rowOf = (el) => ctx.state.session.rows[Number(el.closest('li[data-id]')?.dataset.id)];
-
 function update(row, patch) {
   Object.assign(row, patch);
   touch(row);
@@ -253,6 +304,98 @@ function dedupe(cands) {
   const seen = new Set();
   return cands.filter((c) => !seen.has(c.track.id) && seen.add(c.track.id));
 }
+
+// ---------- Changing the order ----------
+
+/** Moves a row before or after another row. */
+function moveRow(id, targetId, position) {
+  const rows = ctx.state.session.rows;
+  const from = rows.findIndex((r) => r.id === id);
+  if (from < 0 || id === targetId) return;
+  const [row] = rows.splice(from, 1);
+  const target = rows.findIndex((r) => r.id === targetId);
+  rows.splice(target < 0 ? from : target + (position === 'after' ? 1 : 0), 0, row);
+  refresh();
+  ctx.save();
+}
+
+function restoreOrder() {
+  ctx.state.session.rows.sort((a, b) => a.id - b.id);
+  refresh();
+  ctx.save();
+}
+
+function setDropTarget(target) {
+  if (dropTarget) elements.get(dropTarget.id)?.classList.remove('drop-before', 'drop-after');
+  dropTarget = target;
+  if (target) elements.get(target.id)?.classList.add(`drop-${target.position}`);
+}
+
+function onDragStart(e) {
+  const handle = e.target.closest?.('[data-act=drag]');
+  if (!handle || ctx.state.importing) return;
+  const li = handle.closest('li[data-id]');
+  dragId = Number(li.dataset.id);
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', rowById(dragId)?.entry.raw || '');
+  e.dataTransfer.setDragImage(li, 16, 20);
+  requestAnimationFrame(() => li.classList.add('dragging'));
+}
+
+function onDragOver(e) {
+  if (dragId === null) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const li = e.target.closest?.('li[data-id]');
+  if (!li) return; // between two rows: keep the current marker
+  const id = Number(li.dataset.id);
+  if (id === dragId) {
+    setDropTarget(null);
+    return;
+  }
+  const rect = li.getBoundingClientRect();
+  const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+  if (dropTarget?.id !== id || dropTarget.position !== position) setDropTarget({ id, position });
+}
+
+function onDrop(e) {
+  if (dragId === null) return;
+  e.preventDefault();
+  if (dropTarget) moveRow(dragId, dropTarget.id, dropTarget.position);
+}
+
+function onDragEnd() {
+  if (dragId !== null) elements.get(dragId)?.classList.remove('dragging');
+  setDropTarget(null);
+  dragId = null;
+}
+
+function autoScroll(e) {
+  if (dragId === null) return;
+  const edge = 90;
+  if (e.clientY < edge) window.scrollBy(0, -14);
+  else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, 14);
+}
+
+const MOVE_KEYS = { ArrowUp: -1, ArrowDown: 1, PageUp: -10, PageDown: 10, Home: -Infinity, End: Infinity };
+
+/** Keyboard alternative on the handle: arrow keys, Page Up/Down and Home/End move the row among the visible rows. */
+function onHandleKey(e) {
+  const handle = e.target.closest?.('[data-act=drag]');
+  if (!handle || !(e.key in MOVE_KEYS) || ctx.state.importing) return;
+  e.preventDefault();
+  const row = rowOf(handle);
+  const visible = ctx.state.session.rows.filter((r) => matchesFilter(r));
+  const from = visible.indexOf(row);
+  const to = Math.max(0, Math.min(visible.length - 1, from + MOVE_KEYS[e.key]));
+  if (from < 0 || to === from) return;
+  moveRow(row.id, visible[to].id, to > from ? 'after' : 'before');
+  const el = elements.get(row.id);
+  el?.querySelector('[data-act=drag]')?.focus();
+  el?.scrollIntoView({ block: 'nearest' });
+}
+
+// ---------- Events ----------
 
 function onChange(e) {
   const row = rowOf(e.target);

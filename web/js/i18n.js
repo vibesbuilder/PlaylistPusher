@@ -100,6 +100,13 @@ const en = {
     ? `Search finished: ${sure} confident, ${check} to check, ${none} uncertain/not found. Please review the yellow and red entries.`
     : `Search finished: ${plural(sure, 'the entry was', `all ${sure} entries were`)} matched confidently.`),
   'review.needsName': 'Enter a name for the new playlist to import.',
+  'review.dragHint': 'Drag ⠿ to change the order in which the tracks are added (or select ⠿ and use the arrow keys).',
+  'review.restoreOrder': 'Restore original order',
+  'review.usage': 'Spotify requests: {session} since this page was loaded · about {hour} in the last hour · about {day} in the last 24 h',
+  'review.lastQuotaStop': ' · quota last used up: {time} (after about {day} requests in 24 h)',
+  'row.dragTitle': 'Drag to change the order',
+  'row.dragLabel': 'Move “{name}” (arrow keys)',
+  'app.saveFailed': 'Your progress could not be saved in the browser – the list is too large for the browser storage. Keep this tab open until the import is done.',
 
   'row.include': 'Import entry {n}',
   'row.change': 'Change',
@@ -287,6 +294,13 @@ const de = {
     return sure === 1 ? 'Suche abgeschlossen: Der Eintrag wurde sicher zugeordnet.' : `Suche abgeschlossen: alle ${sure} Einträge sicher zugeordnet.`;
   },
   'review.needsName': 'Für den Import einen Namen für die neue Playlist eingeben.',
+  'review.dragHint': 'Mit ⠿ ziehen, um die Reihenfolge beim Hinzufügen zu ändern (oder ⠿ anwählen und die Pfeiltasten nutzen).',
+  'review.restoreOrder': 'Ursprüngliche Reihenfolge wiederherstellen',
+  'review.usage': 'Spotify-Anfragen: {session} seit dem Laden der Seite · etwa {hour} in der letzten Stunde · etwa {day} in den letzten 24 h',
+  'review.lastQuotaStop': ' · Kontingent zuletzt aufgebraucht: {time} (nach etwa {day} Anfragen in 24 h)',
+  'row.dragTitle': 'Ziehen, um die Reihenfolge zu ändern',
+  'row.dragLabel': '„{name}“ verschieben (Pfeiltasten)',
+  'app.saveFailed': 'Der Arbeitsstand konnte nicht im Browser gespeichert werden – die Liste ist zu groß für den Browser-Speicher. Lass diesen Tab bis zum Import offen.',
 
   'row.include': 'Eintrag {n} importieren',
   'row.change': 'Ändern',

@@ -110,6 +110,16 @@ test('search strategy: one request per entry, at most one fallback', async () =>
   assert.deepEqual(missing, ['Unknown Does Not Exist', 'Does Not Exist']);
 });
 
+test('search strategy: badly formatted free text gets a second try without punctuation', async () => {
+  const queen = track('Bohemian Rhapsody', ['Queen']);
+  const queries = [];
+  const search = async (q) => { queries.push(q); return q === 'QUEEN BOHEMIAN RHAPSODY' ? [queen] : []; };
+  const result = await findCandidates({ query: 'QUEEN-BOHEMIAN_RHAPSODY' }, { search });
+  assert.equal(result[0].track, queen);
+  assert.ok(result[0].score >= SCORE_ACCEPT, `score ${result[0].score}`);
+  assert.deepEqual(queries, ['QUEEN-BOHEMIAN_RHAPSODY', 'QUEEN BOHEMIAN RHAPSODY']);
+});
+
 test('search strategy: cancellation, quota and access errors stop immediately', async () => {
   for (const error of [
     Object.assign(new Error('cancelled'), { name: 'AbortError' }),

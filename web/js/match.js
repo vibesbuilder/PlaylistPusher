@@ -246,9 +246,13 @@ export async function findCandidates(entry, { search, getTrack, order = 'auto' }
     await run(first);
     if (weak(SCORE_ACCEPT)) await run(sameWords(first, simple) ? queryValue(splitTitle(entry.title).core) : simple);
   } else if (!entry.isrc || weak(SCORE_ACCEPT)) {
-    await run(queryValue(entry.query || [entry.artist, entry.title].filter(Boolean).join(' ')));
+    const text = entry.query || [entry.artist, entry.title].filter(Boolean).join(' ');
+    await run(queryValue(text));
+    // Badly formatted lines such as "QUEEN-BOHEMIAN_RHAPSODY": one more try with separators as spaces
+    if (weak(SCORE_ACCEPT)) await run(queryValue(text.replace(/[-_/|.,;]+/g, ' ')));
   }
 
   if (!pool.size && lastError) throw lastError;
-  return ranked().slice(0, 10);
+  // Five alternatives are enough for the review and keep the saved session small for long lists
+  return ranked().slice(0, 5);
 }
