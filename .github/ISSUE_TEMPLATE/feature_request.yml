@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest an idea or an improvement
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like PlaylistPusher to do?
+      description: Describe the idea and the situation in which it would help you – English or German is fine.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example
+      description: Optional – an example list, a screenshot or a text file (drag and drop it into this field).

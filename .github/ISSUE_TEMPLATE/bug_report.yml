@@ -1,0 +1,37 @@
+name: Bug report
+description: Something does not work as expected
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please describe the problem as precisely as possible – English or German is fine.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: track-list
+    attributes:
+      label: Track list or file
+      description: Attach the text file that causes the problem (drag and drop it into this field) or paste the affected lines. Rename other formats such as M3U to .txt or zip them first.
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message
+      description: The exact message shown in PlaylistPusher and, if possible, the output of the browser console (F12).
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: PlaylistPusher version
+      placeholder: e.g. 1.0.0
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Edge, Windows 11

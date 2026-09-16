@@ -42,7 +42,7 @@ The interface is available in **English and German** (switch in the top right co
 
 ### 1. Download PlaylistPusher
 
-Download the repository via **Code → Download ZIP** and extract it, or clone it with git.
+Download the [latest release](https://github.com/vibesbuilder/PlaylistPusher/releases/latest) (*Source code (zip)*) and extract it – or clone the repository with git.
 
 ### 2. Install Python (if needed)
 
@@ -183,6 +183,10 @@ Run the tests with Node.js 20 or newer:
 ```bash
 npm test
 ```
+
+## Feedback
+
+Found a bug or have an idea? Please open an [issue](https://github.com/vibesbuilder/PlaylistPusher/issues/new/choose) – you can attach your track list as a text file. PlaylistPusher is currently developed by a single maintainer, so pull requests are not accepted at the moment (see [CONTRIBUTING](CONTRIBUTING.md)). Security issues: see [SECURITY](SECURITY.md).
 
 ## License
 

@@ -42,7 +42,7 @@ Die Oberfläche gibt es auf **Englisch und Deutsch** (Umschalter oben rechts).
 
 ### 1. PlaylistPusher herunterladen
 
-Das Repository über **Code → Download ZIP** herunterladen und entpacken oder mit git klonen.
+Die [aktuelle Version](https://github.com/vibesbuilder/PlaylistPusher/releases/latest) herunterladen (*Source code (zip)*) und entpacken – oder das Repository mit git klonen.
 
 ### 2. Python installieren (falls nötig)
 
@@ -163,6 +163,10 @@ Fehlermeldungen nennen den Schritt, der fehlgeschlagen ist (z. B. *Suche: …* o
 ## Entwicklung
 
 Aufbau und Tests sind im [englischen README](README.md#development) beschrieben. Die Texte der Oberfläche stehen in `web/js/i18n.js`.
+
+## Feedback
+
+Fehler gefunden oder eine Idee? Bitte ein [Issue](https://github.com/vibesbuilder/PlaylistPusher/issues/new/choose) anlegen – die Titelliste kann als Textdatei angehängt werden. PlaylistPusher wird derzeit von einer Person entwickelt; Pull Requests werden deshalb vorerst nicht angenommen (siehe [CONTRIBUTING](CONTRIBUTING.md)). Sicherheitsprobleme: siehe [SECURITY](SECURITY.md).
 
 ## Lizenz
 
