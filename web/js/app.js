@@ -6,6 +6,7 @@ import { DemoClient, DEMO_LIST, DEMO_TARGET } from './demo.js';
 import { initReview, renderAll, refresh, touch, slimTrack, selectedTrack, importRows, rowClass } from './review.js';
 import { t, translatePage, setLanguage } from './i18n.js';
 import { $, $$, debounce, showView, notice, initNotice } from './ui.js';
+import './usage.js';
 
 const CLIENT_KEY = 'pp.clientId';
 const PRELOAD_KEY = 'pp.preloadId';
@@ -310,6 +311,8 @@ function updateParseInfo() {
   const { entries, format } = currentParse();
   const unusable = entries.filter((e) => e.error).length;
   $('#parse-info').textContent = entries.length ? t('input.parsed', { n: entries.length, format, unusable }) : '';
+  // The request overview shows how many Spotify requests this list will need
+  window.dispatchEvent(new CustomEvent('pp:parsed', { detail: { entries: entries.length - unusable } }));
   updateStartButton();
 }
 
@@ -499,6 +502,7 @@ async function resumeMatching() {
   const worker = async () => {
     while (queue.length && !fatal && !controller.signal.aborted && active()) {
       const row = queue.shift();
+      if (row.removed) continue; // removed from the list while the search was running
       row.status = 'searching';
       touch(row);
       refresh();

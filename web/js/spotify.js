@@ -71,6 +71,13 @@ export function sleep(ms, signal) {
 
 // ---------- Request statistics (to find out Spotify's limits) ----------
 
+const HOUR_MS = 60 * 60 * 1000;
+
+/** Tells the UI (usage overview) that the statistics changed. */
+function notifyUsage(type) {
+  globalThis.dispatchEvent?.(new CustomEvent('pp:usage', { detail: { type } }));
+}
+
 function recordRequest() {
   const usage = store.get(USAGE_KEY) || {};
   const now = Date.now();
@@ -78,6 +85,7 @@ function recordRequest() {
   usage[bucket] = (usage[bucket] || 0) + 1;
   for (const key of Object.keys(usage)) if (Number(key) < now - USAGE_KEEP_MS) delete usage[key];
   store.set(USAGE_KEY, usage);
+  notifyUsage('request');
 }
 
 /** Requests sent to the Spotify Web API from this browser: about the last hour and the last 24 hours. */
@@ -85,22 +93,38 @@ export function requestUsage() {
   const usage = store.get(USAGE_KEY) || {};
   const now = Date.now();
   const since = (ms) => Object.entries(usage).reduce((sum, [bucket, n]) => (Number(bucket) + BUCKET_MS > now - ms ? sum + n : sum), 0);
-  return { hour: since(60 * 60 * 1000), day: since(24 * 60 * 60 * 1000) };
+  return { hour: since(HOUR_MS), day: since(24 * HOUR_MS) };
 }
 
-/** The last time Spotify reported the request quota as used up: { at, day } or null. */
-export function lastQuotaStop() {
-  const stops = store.get(QUOTA_STOPS_KEY) || [];
-  return stops.at(-1) || null;
+/** Requests per hour for the last 48 hours, newest first: [{ at, count }]. */
+export function usageHistory() {
+  const usage = store.get(USAGE_KEY) || {};
+  const hours = new Map();
+  for (const [bucket, n] of Object.entries(usage)) {
+    const hour = Math.floor(Number(bucket) / HOUR_MS) * HOUR_MS;
+    hours.set(hour, (hours.get(hour) || 0) + n);
+  }
+  return [...hours].map(([at, count]) => ({ at, count })).sort((a, b) => b.at - a.at);
 }
+
+/** Times Spotify reported the request quota as used up (oldest first): [{ at, day }]. */
+export const quotaStops = () => store.get(QUOTA_STOPS_KEY) || [];
+export const lastQuotaStop = () => quotaStops().at(-1) || null;
 
 function recordQuotaStop() {
-  const stops = store.get(QUOTA_STOPS_KEY) || [];
+  const stops = quotaStops();
   const last = stops.at(-1);
   // Several requests in a row may hit the quota; count one stop per 10 minutes
   if (last && Date.now() - last.at < BUCKET_MS) return;
   stops.push({ at: Date.now(), day: requestUsage().day });
   store.set(QUOTA_STOPS_KEY, stops.slice(-20));
+  notifyUsage('quota');
+}
+
+export function resetUsage() {
+  store.del(USAGE_KEY);
+  store.del(QUOTA_STOPS_KEY);
+  notifyUsage('reset');
 }
 
 // ---------- Login ----------

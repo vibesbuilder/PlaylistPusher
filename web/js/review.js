@@ -1,16 +1,24 @@
-// Review view: renders the rows, lets the user pick alternatives, search manually, paste a link
-// and change the order of the rows by drag and drop or keyboard.
+// Review view: renders the rows, lets the user pick alternatives, search manually, paste a link,
+// select and remove entries, and change the order by drag and drop or keyboard.
 import { SCORE_SURE, SCORE_ACCEPT, scoreTrack } from './match.js';
 import { parseSpotifyTrackId } from './parse.js';
-import { requestUsage, lastQuotaStop } from './spotify.js';
 import { t, getLanguage } from './i18n.js';
 import { $, $$, esc, formatDuration } from './ui.js';
 
 let ctx = null; // { state, save, notice, onError }
 const elements = new Map(); // row.id -> <li>
 const signatures = new Map(); // row.id -> last rendered state
+const selected = new Set(); // ids of selected rows
+let lastSelectedId = null; // anchor for Shift-click range selection
+let lastRemoval = null; // { session, removed: [{ row, index }] } for "Undo"
 let dragId = null; // row.id of the row being dragged
 let dropTarget = null; // { id, position: 'before' | 'after' }
+
+const ICONS = {
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>',
+  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>',
+};
 
 const round = (x) => Math.round(x * 1000) / 1000;
 
@@ -73,17 +81,36 @@ export function initReview(context) {
   list.addEventListener('click', onClick);
   list.addEventListener('submit', onSubmit);
   list.addEventListener('keydown', onHandleKey);
+  list.addEventListener('mousedown', (e) => {
+    // Shift-click on a checkbox selects a range; do not also select text on the page
+    if (e.shiftKey && e.target.matches('input[data-act=select-row]')) e.preventDefault();
+  });
   list.addEventListener('dragstart', onDragStart);
   list.addEventListener('dragover', onDragOver);
   list.addEventListener('drop', onDrop);
   list.addEventListener('dragend', onDragEnd);
   // Scroll while dragging near the edges, also above the sticky header and footer
   document.addEventListener('dragover', autoScroll);
+  document.addEventListener('keydown', onDeleteKey);
+
   $('#btn-restore-order').addEventListener('click', restoreOrder);
+  $('#select-all').addEventListener('change', (e) => {
+    for (const row of selectableRows()) {
+      if (e.target.checked) selected.add(row.id);
+      else selected.delete(row.id);
+    }
+    refresh();
+  });
+  $('#btn-remove-selected').addEventListener('click', removeSelected);
+  $('#btn-clear-selection').addEventListener('click', () => {
+    selected.clear();
+    refresh();
+  });
   $('#filters').addEventListener('click', (e) => {
     const button = e.target.closest('[data-filter]');
     if (!button) return;
     ctx.state.session.filter = button.dataset.filter;
+    selected.clear(); // a selection that is no longer visible would be removed unnoticed
     refresh();
     ctx.save();
   });
@@ -99,10 +126,13 @@ export function renderAll() {
   $('#rows').textContent = '';
   elements.clear();
   signatures.clear();
+  selected.clear();
+  lastSelectedId = null;
+  lastRemoval = null;
   refresh();
 }
 
-/** Updates duplicates, changed rows, order, filters and the summary. */
+/** Updates duplicates, changed rows, order, selection, filters and the summary. */
 export function refresh() {
   const { session, importing, matching } = ctx.state;
   computeDuplicates();
@@ -131,12 +161,17 @@ export function refresh() {
       signatures.set(row.id, sig);
       el.dataset.pos = '';
     }
-    // The number shows the current position; updated without re-rendering the row
+    // Position number and selection are updated without re-rendering the row
+    const checkbox = el.querySelector('[data-act=select-row]');
     if (el.dataset.pos !== String(index + 1)) {
       el.dataset.pos = index + 1;
       el.querySelector('.num').textContent = index + 1;
-      el.querySelector('[data-act=include]').setAttribute('aria-label', t('row.include', { n: index + 1 }));
+      checkbox.setAttribute('aria-label', t('row.select', { n: index + 1 }));
     }
+    const isSelected = selected.has(row.id);
+    checkbox.checked = isSelected;
+    el.classList.toggle('selected', isSelected);
+
     const show = matchesFilter(row, filter);
     el.hidden = !show;
     if (show) visible++;
@@ -147,6 +182,8 @@ export function refresh() {
   $('#input-skip-dups').checked = session.skipDuplicates;
   updateSummary();
 }
+
+const selectableRows = () => ctx.state.session.rows.filter((r) => matchesFilter(r) && !r.imported);
 
 function updateSummary() {
   const { session, matching, importing } = ctx.state;
@@ -178,27 +215,19 @@ function updateSummary() {
   resume.hidden = matching || importing || retryable === 0;
   resume.textContent = t('review.resume', { n: retryable });
 
-  $('#btn-restore-order').hidden = importing || session.rows.every((r, i) => r.id === i);
-  renderUsage();
-}
+  const sorted = session.rows.every((r, i) => i === 0 || session.rows[i - 1].id < r.id);
+  $('#btn-restore-order').hidden = importing || sorted;
 
-/** Shows how many requests were sent to Spotify – helps to find out the limits of the request quota. */
-function renderUsage() {
-  const el = $('#usage-info');
-  const { client, demo } = ctx.state;
-  if (demo || !client) {
-    el.hidden = true;
-    return;
-  }
-  const usage = requestUsage();
-  let text = t('review.usage', { session: client.requestCount ?? 0, hour: usage.hour, day: usage.day });
-  const stop = lastQuotaStop();
-  if (stop) {
-    const time = new Date(stop.at).toLocaleString(getLanguage(), { dateStyle: 'short', timeStyle: 'short' });
-    text += t('review.lastQuotaStop', { time, day: stop.day });
-  }
-  el.textContent = text;
-  el.hidden = false;
+  // Selection: "select all shown" checkbox and the bar with bulk actions
+  const selectable = selectableRows();
+  const selectedShown = selectable.filter((r) => selected.has(r.id)).length;
+  const selectAll = $('#select-all');
+  selectAll.checked = selectable.length > 0 && selectedShown === selectable.length;
+  selectAll.indeterminate = selectedShown > 0 && selectedShown < selectable.length;
+  selectAll.disabled = importing || selectable.length === 0;
+  $('#bulk-bar').hidden = importing || selected.size === 0;
+  $('#bulk-count').textContent = t('review.selected', { n: selected.size });
+  $('#btn-remove-selected').title = t('review.removeSelectedTitle', { n: selected.size });
 }
 
 function itemClasses(row) {
@@ -208,20 +237,25 @@ function itemClasses(row) {
 
 function rowHtml(row) {
   const track = selectedTrack(row);
+  const name = row.entry.raw;
   // Entries that were not searched yet can be changed manually as long as no search is running
   const busy = row.status === 'searching' || (row.status === 'pending' && ctx.state.matching);
   const locked = busy || row.imported || ctx.state.importing;
   const handle = ctx.state.importing
     ? '<span class="drag" aria-hidden="true">⠿</span>'
-    : `<span class="drag" role="button" tabindex="0" draggable="true" data-act="drag" title="${esc(t('row.dragTitle'))}" aria-label="${esc(t('row.dragLabel', { name: row.entry.raw }))}">⠿</span>`;
+    : `<span class="drag" role="button" tabindex="0" draggable="true" data-act="drag" title="${esc(t('row.dragTitle'))}" aria-label="${esc(t('row.dragLabel', { name }))}">⠿</span>`;
+  const changeLabel = t(row.open ? 'row.close' : 'row.change');
   return `<div class="item-line">
     ${handle}
-    <input type="checkbox" data-act="include" ${row.include && track ? 'checked' : ''} ${locked || !track ? 'disabled' : ''}>
+    <input type="checkbox" data-act="select-row" ${row.imported || ctx.state.importing ? 'disabled' : ''}>
     <span class="num"></span>
-    <div class="source"><div class="raw">${esc(row.entry.raw)}</div>${sourceInfo(row)}</div>
+    <div class="source"><div class="raw">${esc(name)}</div>${sourceInfo(row)}</div>
     <div class="match">${matchInfo(row, track)}</div>
     <div class="badges">${badgesHtml(row)}</div>
-    <button type="button" class="small toggle" data-act="toggle" ${locked ? 'disabled' : ''}>${esc(t(row.open ? 'row.close' : 'row.change'))}</button>
+    <div class="row-actions">
+      <button type="button" class="icon-btn" data-act="toggle" title="${esc(changeLabel)}" aria-label="${esc(`${changeLabel}: ${name}`)}" aria-expanded="${!!row.open}" ${locked ? 'disabled' : ''}>${row.open ? ICONS.close : ICONS.edit}</button>
+      <button type="button" class="icon-btn danger" data-act="remove" title="${esc(t('row.remove'))}" aria-label="${esc(`${t('row.remove')}: ${name}`)}" ${row.imported || ctx.state.importing ? 'disabled' : ''}>${ICONS.trash}</button>
+    </div>
   </div>${row.open && !locked ? panelHtml(row) : ''}`;
 }
 
@@ -264,6 +298,7 @@ function badgesHtml(row) {
   else if (c && row.manual) out.push(`<span class="badge manual">${esc(t('row.manual'))}</span>`);
   else if (c) out.push(`<span class="badge ${cls}" title="${esc(t('row.scoreTitle'))}">${{ sure: '✓', check: '?', none: '✗' }[cls]} ${Math.round(c.score * 100)} %</span>`);
   else if (row.status === 'done') out.push(`<span class="badge none">${esc(t('row.notFound'))}</span>`);
+  if (c && !row.imported && !row.include) out.push(`<span class="badge none">${esc(t('row.notImported'))}</span>`);
   if (row.dup === 'playlist') out.push(`<span class="badge dup">${esc(t('row.inPlaylist'))}</span>`);
   if (row.dup === 'list') out.push(`<span class="badge dup">${esc(t('row.duplicate'))}</span>`);
   return out.join('');
@@ -272,12 +307,12 @@ function badgesHtml(row) {
 function panelHtml(row) {
   const cands = row.candidates
     .map((c) => {
-      const selected = c.track.id === row.selectedId;
+      const isSelected = c.track.id === row.selectedId;
       const cls = c.score >= SCORE_SURE ? 'sure' : c.score >= SCORE_ACCEPT ? 'check' : 'none';
       const play = ctx.state.demo
         ? ''
         : `<button type="button" class="small play" data-act="play" data-track="${esc(c.track.id)}">${esc(t(row.playing === c.track.id ? 'row.stop' : 'row.play'))}</button>`;
-      return `<li class="cand${selected ? ' selected' : ''}"><label><input type="radio" name="sel-${row.id}" data-act="select" value="${esc(c.track.id)}" ${selected ? 'checked' : ''}>${trackHtml(c.track, false)}<span class="badge ${cls}">${Math.round(c.score * 100)} %</span></label>${play}</li>`;
+      return `<li class="cand${isSelected ? ' selected' : ''}"><label><input type="radio" name="sel-${row.id}" data-act="select" value="${esc(c.track.id)}" ${isSelected ? 'checked' : ''}>${trackHtml(c.track, false)}<span class="badge ${cls}">${Math.round(c.score * 100)} %</span></label>${play}</li>`;
     })
     .join('');
   const player = row.playing
@@ -285,11 +320,10 @@ function panelHtml(row) {
     : '';
   const query = row.searchQuery ?? ([row.entry.artist, row.entry.title].filter(Boolean).join(' ') || row.entry.query || '');
   return `<div class="panel">
-    ${cands ? `<ul class="cands">${cands}</ul>` : `<p class="muted">${esc(t('row.noSuggestions'))}</p>`}
+    ${cands ? `<div><p class="hint pick-hint">${esc(t('row.pickHint'))}</p><ul class="cands">${cands}</ul></div>` : `<p class="muted">${esc(t('row.noSuggestions'))}</p>`}
     ${player}
     <form data-act="search"><input type="search" name="q" value="${esc(query)}" placeholder="${esc(t('row.searchPlaceholder'))}" aria-label="${esc(t('row.searchLabel'))}"><button type="submit" ${row.busy ? 'disabled' : ''}>${esc(t(row.busy === 'search' ? 'row.searchBusy' : 'row.search'))}</button></form>
     <form data-act="link"><input name="link" placeholder="${esc(t('row.linkPlaceholder'))}" aria-label="${esc(t('row.linkLabel'))}"><button type="submit" ${row.busy ? 'disabled' : ''}>${esc(t(row.busy === 'link' ? 'row.applyBusy' : 'row.apply'))}</button></form>
-    <div><button type="button" class="link" data-act="skip">${esc(t('row.skip'))}</button></div>
   </div>`;
 }
 
@@ -303,6 +337,55 @@ function update(row, patch) {
 function dedupe(cands) {
   const seen = new Set();
   return cands.filter((c) => !seen.has(c.track.id) && seen.add(c.track.id));
+}
+
+// ---------- Removing entries ----------
+
+function removeRows(ids) {
+  const { session } = ctx.state;
+  const wanted = new Set(ids);
+  const removed = [];
+  session.rows.forEach((row, index) => {
+    if (wanted.has(row.id) && !row.imported) removed.push({ row, index });
+  });
+  if (!removed.length) return;
+  for (const { row } of removed) {
+    row.removed = true; // a running search skips removed entries
+    selected.delete(row.id);
+    elements.get(row.id)?.remove();
+    elements.delete(row.id);
+    signatures.delete(row.id);
+  }
+  session.rows = session.rows.filter((row) => !row.removed);
+  lastRemoval = { session, removed };
+  refresh();
+  ctx.save();
+  ctx.notice(t('review.removed', { n: removed.length }), { action: { label: t('review.undo'), fn: undoRemoval } });
+}
+
+function removeSelected() {
+  if (selected.size && !ctx.state.importing) removeRows([...selected]);
+}
+
+function undoRemoval() {
+  const removal = lastRemoval;
+  lastRemoval = null;
+  if (!removal || removal.session !== ctx.state.session) return;
+  const { rows } = removal.session;
+  // Re-insert in ascending original position, so every entry lands where it was
+  for (const { row, index } of [...removal.removed].sort((a, b) => a.index - b.index)) {
+    row.removed = false;
+    rows.splice(Math.min(index, rows.length), 0, row);
+  }
+  refresh();
+  ctx.save();
+}
+
+function onDeleteKey(e) {
+  if (e.key !== 'Delete' || !selected.size || $('#view-review').hidden || document.querySelector('dialog[open]')) return;
+  if (e.target.closest('input:not([type=checkbox]):not([type=radio]), textarea, select')) return;
+  e.preventDefault();
+  removeSelected();
 }
 
 // ---------- Changing the order ----------
@@ -400,19 +483,46 @@ function onHandleKey(e) {
 function onChange(e) {
   const row = rowOf(e.target);
   if (!row) return;
-  if (e.target.dataset.act === 'include') update(row, { include: e.target.checked });
   // A manual choice counts as searched, so "Resume search" leaves this entry alone
   if (e.target.dataset.act === 'select') update(row, { selectedId: e.target.value, manual: true, include: true, status: 'done' });
 }
 
 function onClick(e) {
+  const checkbox = e.target.closest('input[data-act=select-row]');
+  if (checkbox) return toggleSelection(checkbox, e.shiftKey);
+
+  const radio = e.target.closest('input[data-act=select]');
+  if (radio) {
+    const row = rowOf(radio);
+    // Clicking the track that is already selected confirms it, e.g. an uncertain match that is correct
+    if (row && row.selectedId === radio.value && !(row.manual && row.include)) update(row, { manual: true, include: true, status: 'done' });
+    return;
+  }
+
   const button = e.target.closest('button[data-act]');
   const row = button && rowOf(button);
   if (!row) return;
   const act = button.dataset.act;
   if (act === 'toggle') update(row, { open: !row.open, playing: null });
   if (act === 'play') update(row, { playing: row.playing === button.dataset.track ? null : button.dataset.track });
-  if (act === 'skip') update(row, { include: false, open: false, playing: null });
+  if (act === 'remove') removeRows([row.id]);
+}
+
+/** Selects or deselects a row; with Shift, the whole range from the last clicked row. */
+function toggleSelection(checkbox, withShift) {
+  const row = rowOf(checkbox);
+  if (!row) return;
+  const on = checkbox.checked;
+  const visible = selectableRows();
+  const from = withShift ? visible.findIndex((r) => r.id === lastSelectedId) : -1;
+  const to = visible.indexOf(row);
+  const range = from >= 0 && to >= 0 ? visible.slice(Math.min(from, to), Math.max(from, to) + 1) : [row];
+  for (const r of range) {
+    if (on) selected.add(r.id);
+    else selected.delete(r.id);
+  }
+  lastSelectedId = row.id;
+  refresh();
 }
 
 async function onSubmit(e) {

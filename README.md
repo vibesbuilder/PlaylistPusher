@@ -10,7 +10,7 @@ PlaylistPusher is a small local web app for radio stations, DJs and anyone with 
 
 1. Paste a list or open a file, then choose the target playlist (or create a new one)
 2. Every entry is searched on Spotify – matches appear **live**, color-coded by confidence
-3. Fix wrong matches per track: pick an alternative, search again, paste a Spotify link, listen, or skip – and change the order by drag and drop
+3. Fix wrong matches per track: pick an alternative, search again, paste a Spotify link, listen, remove entries – and change the order by drag and drop
 4. Tracks are added only after you **confirm** the import
 
 The interface is available in **English and German** (switch in the top right corner).
@@ -23,8 +23,9 @@ The interface is available in **English and German** (switch in the top right co
 - **Copes with messy lists:** broken umlauts, underscores instead of spaces, track numbers and durations are cleaned up automatically
 - **Reliable matching:** alternative spellings and umlauts, "feat." credits, swapped artist/title order, radio edit vs. album version; karaoke, tribute and unrequested live versions are ranked down
 - **Duplicate detection** within the list and against the target playlist
+- **Quick clean-up:** remove entries one by one or several at once – with undo
 - **Your order:** drag and drop entries to decide in which order they are added
-- **Respects Spotify's limits:** paced requests, cancel and resume at any time, request statistics
+- **Respects Spotify's limits:** paced requests, cancel and resume at any time, overview of all requests sent
 - **Nothing gets lost:** your review is saved in the browser and restored after a reload or a new login
 - **Runs locally:** no packages to install, no cloud service – Python serves the UI, your browser talks directly to the Spotify Web API
 - **Demo mode** to try everything without a Spotify account
@@ -77,10 +78,13 @@ Keep the console window open while you use PlaylistPusher; press Ctrl+C or close
 1. **Track list** – paste it, click *Open file…* or drag a file into the window
 2. **Target playlist** – choose one of your playlists next to the list, or *+ Create new playlist*. Only playlists you own or collaborate on can be filled.
 3. **Find tracks** – results appear while the search is running. *Cancel search* stops it, *Resume search* continues later. The target playlist can still be changed at the top of the review screen.
-4. **Review** – green: confident (≥ 85 %) · yellow: please check (60–85 %) · red: uncertain or not found (< 60 %, not selected automatically)
-5. **Change** – opens alternatives, a search field, a field for a Spotify link, a player (*▶ Listen*) and *Don't import this entry*
-6. **Order** – drag an entry by its handle ⠿ to change the order in which the tracks are added. With the handle selected, the arrow keys, Page Up/Down and Home/End move the entry as well. *Restore original order* undoes all moves.
-7. **Import** – shows a summary; tracks are added only after you confirm
+4. **Review** – green: confident (≥ 85 %) · yellow: please check (60–85 %) · red: uncertain or not found (< 60 %). Uncertain and not found entries are not imported (badge *not imported*).
+5. **Change** (pencil icon) – opens alternatives, a search field, a field for a Spotify link and a player (*▶ Listen*). Click the correct track to use it – this also confirms an uncertain match.
+6. **Remove** (trash icon) – removes an entry from the list. For several entries, tick their checkboxes (Shift-click selects a range, *Select all shown* selects everything the current filter shows), then click *Remove* at the bottom or press the Delete key. *Undo* brings removed entries back.
+7. **Order** – drag an entry by its handle ⠿ to change the order in which the tracks are added. With the handle selected, the arrow keys, Page Up/Down and Home/End move the entry as well. *Restore original order* undoes all moves.
+8. **Import** – shows a summary; tracks are added only after you confirm
+
+Tip: to get rid of everything that was not found, choose the filter *Uncertain / not found*, tick *Select all shown* and click *Remove*.
 
 ### Command line
 
@@ -120,14 +124,20 @@ Open `http://127.0.0.1:8138/?demo` (or use the demo link on the setup page) to t
 
 ## Spotify request limits
 
-Spotify limits the number of requests for apps in Development Mode; the limit is shared by all Development Mode apps of your Spotify developer account and Spotify does not publish its size or reset time. PlaylistPusher therefore searches one entry at a time, spreads its requests out and needs only one or two searches per entry.
+Spotify limits the number of requests for apps in Development Mode; the limit is shared by all Development Mode apps of your Spotify developer account and Spotify does not publish its size or reset time. PlaylistPusher therefore searches one entry at a time, spreads its requests out and needs one search per entry – two if the first one finds nothing suitable.
+
+> **Rough guide from tests:** after about **1,000 requests within 24 hours** the quota was used up, and the app was blocked for about 24 hours afterwards. Depending on how many entries are found with the first search, that is enough for roughly 500–1,000 list entries per day. This is not an official Spotify figure and may change at any time.
 
 - **Cancel search** stops the search immediately; the results found so far are kept.
 - If Spotify's limit is reached, the search stops by itself and keeps its results.
 - **Resume search** continues with the remaining entries (and retries searches that failed) whenever you like.
-- The review screen shows how many requests were sent – since the page was loaded, in the last hour and in the last 24 hours – and when Spotify last reported the quota as used up. This helps to find out the limits for your account.
+- Below *Find tracks*, PlaylistPusher estimates how many requests the list needs and warns if that may be more than is left of the rough guide.
+- **Spotify requests (24 h): … / ~1,000** at the top right shows how many requests were sent in the last 24 hours (yellow from 80 %, red from 100 % of the guide). Click it for the overview: requests since the page was loaded, in the last hour and in the last 24 hours, requests per hour for the last 48 hours, and every time Spotify reported the quota as used up – with the number of requests in the 24 hours before. *Reset statistics* starts a new measurement.
 
-Tip for long lists: choose *+ Create new playlist* as the target. Reading the tracks of an existing playlist (for the duplicate check) needs one request per 50 tracks.
+Tips for long lists:
+
+- Choose *+ Create new playlist* as the target. Reading the tracks of an existing playlist (for the duplicate check) needs one request per 50 tracks.
+- Import in parts: cancel the search after a few hundred entries, import the tracks found so far, then resume. Importing needs only one request per 100 tracks, but it is not possible once the quota is used up.
 
 ## Troubleshooting
 
@@ -158,10 +168,11 @@ PlaylistPusher.cmd     Windows launcher
 web/index.html         UI markup
 web/style.css          styles (light and dark mode)
 web/js/app.js          flow: setup, login, list, matching, import
-web/js/review.js       review screen, reordering
+web/js/review.js       review screen: changing, removing and reordering entries
 web/js/match.js        search strategy and scoring
 web/js/parse.js        list parser
 web/js/spotify.js      Spotify Web API client (PKCE, pacing, retries, request statistics)
+web/js/usage.js        overview of the requests sent to Spotify
 web/js/i18n.js         English and German texts
 web/js/demo.js         demo catalog
 tests/                 unit tests for parser and matching

@@ -13,6 +13,7 @@
     <div class="brand"><span class="logo" aria-hidden="true"></span>PlaylistPusher <span id="demo-badge" class="badge dup" hidden>Demo</span></div>
     <div class="topbar-right">
       <div class="account" id="account" hidden>
+        <button class="link usage-link" id="btn-usage" data-i18n-title="usage.title" hidden></button>
         <span id="account-name" class="muted"></span>
         <button class="link" id="btn-settings" data-i18n="account.clientId"></button>
         <button class="link" id="btn-logout" data-i18n="account.logout"></button>
@@ -106,6 +107,7 @@
           <div class="start-box">
             <button class="primary big" id="btn-match" data-i18n="input.start" disabled></button>
             <p class="hint" id="start-hint"></p>
+            <p class="hint" id="budget-hint" hidden></p>
           </div>
         </div>
       </div>
@@ -140,14 +142,24 @@
           <button data-filter="dup" class="chip dup"><span data-i18n="review.filter.dup"></span> <b id="count-dup">0</b></button>
         </div>
         <label class="check"><input type="checkbox" id="input-skip-dups" checked> <span data-i18n="review.skipDuplicates"></span></label>
-        <p class="hint order-hint"><span data-i18n="review.dragHint"></span> <button type="button" class="link" id="btn-restore-order" data-i18n="review.restoreOrder" hidden></button></p>
-        <p class="hint" id="usage-info" hidden></p>
+        <div class="review-tools">
+          <label class="check"><input type="checkbox" id="select-all"> <span data-i18n="review.selectAll"></span></label>
+          <p class="hint order-hint"><span data-i18n="review.dragHint"></span> <button type="button" class="link" id="btn-restore-order" data-i18n="review.restoreOrder" hidden></button></p>
+        </div>
       </div>
 
       <ol id="rows" class="rows"></ol>
       <p id="rows-empty" class="muted center" data-i18n="review.empty" hidden></p>
 
       <div class="footer-bar">
+        <div id="bulk-bar" class="bulk" hidden>
+          <span id="bulk-count" class="bulk-count"></span>
+          <button type="button" class="small danger with-icon" id="btn-remove-selected">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>
+            <span data-i18n="review.removeSelected"></span>
+          </button>
+          <button type="button" class="link" id="btn-clear-selection" data-i18n="review.clearSelection"></button>
+        </div>
         <span id="footer-info" class="muted"></span>
         <button class="primary big" id="btn-import" disabled></button>
       </div>
@@ -171,6 +183,31 @@
       <div class="row end">
         <button value="cancel" data-i18n="confirm.cancel"></button>
         <button value="ok" class="primary" id="btn-confirm-ok" data-i18n="confirm.ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialog-usage">
+    <form method="dialog">
+      <h2 data-i18n="usage.title"></h2>
+      <div class="usage-stats">
+        <div><b id="usage-session">0</b><span data-i18n="usage.session"></span></div>
+        <div><b id="usage-hour">0</b><span data-i18n="usage.hour"></span></div>
+        <div><b id="usage-day">0</b><span data-i18n="usage.day"></span></div>
+      </div>
+      <p class="hint" data-i18n="usage.note"></p>
+      <h3 data-i18n="usage.stops"></h3>
+      <ul id="usage-stops"></ul>
+      <h3 data-i18n="usage.perHour"></h3>
+      <div class="usage-scroll">
+        <table class="usage-table">
+          <thead><tr><td class="muted" data-i18n="usage.hourCol"></td><td class="muted count" data-i18n="usage.requestsCol"></td></tr></thead>
+          <tbody id="usage-hours"></tbody>
+        </table>
+      </div>
+      <div class="row end">
+        <button type="button" class="link" id="btn-usage-reset" data-i18n="usage.reset"></button>
+        <button value="close" class="primary" data-i18n="usage.close"></button>
       </div>
     </form>
   </dialog>

@@ -241,13 +241,41 @@ dialog h2 { margin-top: 0; }
 .item.drop-before::before { top: -6px; }
 .item.drop-after::after { bottom: -6px; }
 .order-hint { display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: baseline; }
-#usage-info { margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+/* Selecting and removing entries */
+.item.selected { background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.review-tools { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; }
+.row-actions { display: flex; gap: 6px; }
+.icon-btn { width: 34px; height: 34px; padding: 0; }
+.icon-btn svg, .with-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+button.danger:hover:not(:disabled) { color: var(--none); border-color: var(--none); }
+.bulk { display: flex; align-items: center; gap: 10px; margin-right: auto; flex-wrap: wrap; }
+.bulk-count { font-weight: 600; }
+.pick-hint { margin: 0 0 6px; }
+
+/* Overview of the Spotify requests */
+.usage-link { font-variant-numeric: tabular-nums; }
+.usage-link.warn, #budget-hint.warn { color: var(--check); }
+.usage-link.over { color: var(--none); }
+#budget-hint.warn { font-weight: 600; }
+.usage-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0 4px; }
+.usage-stats div { background: var(--hover); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
+.usage-stats b { display: block; font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; }
+#dialog-usage { max-width: 560px; }
+#dialog-usage h3 { font-size: 14px; margin: 16px 0 6px; }
+.usage-scroll { max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+.usage-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.usage-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.usage-table tr:last-child td { border-bottom: 0; }
+.usage-table .count { text-align: right; }
+#usage-stops { margin: 0; padding-left: 18px; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 760px) {
   .item-line { grid-template-columns: 18px auto 22px minmax(0, 1fr) auto; }
   .item-line .match { grid-column: 3 / 5; grid-row: 2; }
   .item-line .badges { grid-column: 5; grid-row: 1; }
-  .item-line .toggle { grid-column: 5; grid-row: 2; }
+  .item-line .row-actions { grid-column: 5; grid-row: 2; }
+  .usage-stats { grid-template-columns: 1fr; }
   .cand { grid-template-columns: auto 40px minmax(0, 1fr) auto; }
   .cand .play { display: none; }
 }

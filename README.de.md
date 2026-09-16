@@ -10,7 +10,7 @@ PlaylistPusher ist eine kleine lokale Web-App für Radiosender, DJs und alle, di
 
 1. Liste einfügen oder Datei öffnen, dann die Ziel-Playlist wählen (oder eine neue anlegen)
 2. Jeder Eintrag wird auf Spotify gesucht – die Treffer erscheinen **live** und sind nach Sicherheit farblich markiert
-3. Falsche Treffer pro Titel korrigieren: Alternative wählen, neu suchen, Spotify-Link einfügen, reinhören oder überspringen – und die Reihenfolge per Drag & Drop ändern
+3. Falsche Treffer pro Titel korrigieren: Alternative wählen, neu suchen, Spotify-Link einfügen, reinhören, Einträge entfernen – und die Reihenfolge per Drag & Drop ändern
 4. Erst nach **Bestätigung** werden die Titel hinzugefügt
 
 Die Oberfläche gibt es auf **Englisch und Deutsch** (Umschalter oben rechts).
@@ -23,8 +23,9 @@ Die Oberfläche gibt es auf **Englisch und Deutsch** (Umschalter oben rechts).
 - **Kommt mit unsauberen Listen zurecht:** kaputte Umlaute, Unterstriche statt Leerzeichen, Tracknummern und Laufzeiten werden automatisch bereinigt
 - **Zuverlässiger Abgleich:** unterschiedliche Schreibweisen und Umlaute, „feat.“-Angaben, vertauschte Reihenfolge, Radio Edit oder Albumversion; Karaoke-, Tribute- und nicht gewünschte Live-Versionen werden abgewertet
 - **Duplikaterkennung** innerhalb der Liste und gegenüber der Ziel-Playlist
+- **Schnell aufräumen:** Einträge einzeln oder mehrere auf einmal entfernen – mit Rückgängig
 - **Eigene Reihenfolge:** Einträge per Drag & Drop in die Reihenfolge bringen, in der sie hinzugefügt werden
-- **Hält Spotifys Limits ein:** verteilte Anfragen, Abbrechen und Fortsetzen jederzeit, Anfragestatistik
+- **Hält Spotifys Limits ein:** verteilte Anfragen, Abbrechen und Fortsetzen jederzeit, Übersicht über alle gesendeten Anfragen
 - **Nichts geht verloren:** Der Prüfstand wird im Browser gespeichert und nach Neuladen oder erneuter Anmeldung wiederhergestellt
 - **Läuft lokal:** keine Pakete, kein Cloud-Dienst – Python liefert die Oberfläche aus, der Browser spricht direkt mit der Spotify Web API
 - **Demo-Modus** zum Ausprobieren ohne Spotify-Konto
@@ -77,10 +78,13 @@ Das Konsolenfenster muss offen bleiben, solange PlaylistPusher benutzt wird; bee
 1. **Titelliste** – einfügen, *Datei öffnen…* klicken oder eine Datei ins Fenster ziehen
 2. **Ziel-Playlist** – neben der Liste eine eigene Playlist wählen oder *+ Neue Playlist erstellen*. Befüllt werden können nur Playlists, die dir gehören oder bei denen du mitarbeitest.
 3. **Titel suchen** – die Treffer erscheinen schon während der Suche. *Suche abbrechen* stoppt sie, *Suche fortsetzen* macht später weiter. Die Ziel-Playlist lässt sich oben in der Prüfansicht noch ändern.
-4. **Prüfen** – grün: sicher (≥ 85 %) · gelb: bitte prüfen (60–85 %) · rot: unsicher oder nicht gefunden (< 60 %, wird nicht automatisch übernommen)
-5. **Ändern** – öffnet Alternativen, ein Suchfeld, ein Feld für einen Spotify-Link, einen Player (*▶ Anhören*) und *Diesen Eintrag nicht importieren*
-6. **Reihenfolge** – einen Eintrag am Griff ⠿ ziehen, um die Reihenfolge beim Hinzufügen zu ändern. Ist der Griff angewählt, verschieben auch die Pfeiltasten, Bild ↑/↓ sowie Pos1/Ende den Eintrag. *Ursprüngliche Reihenfolge wiederherstellen* macht alle Verschiebungen rückgängig.
-7. **Importieren** – zeigt eine Zusammenfassung; hinzugefügt wird erst nach Bestätigung
+4. **Prüfen** – grün: sicher (≥ 85 %) · gelb: bitte prüfen (60–85 %) · rot: unsicher oder nicht gefunden (< 60 %). Unsichere und nicht gefundene Einträge werden nicht importiert (Kennzeichnung *nicht importiert*).
+5. **Ändern** (Stift-Symbol) – öffnet Alternativen, ein Suchfeld, ein Feld für einen Spotify-Link und einen Player (*▶ Anhören*). Den richtigen Track anklicken, um ihn zu übernehmen – das bestätigt auch einen unsicheren Treffer.
+6. **Entfernen** (Papierkorb-Symbol) – entfernt einen Eintrag aus der Liste. Für mehrere Einträge deren Kästchen anhaken (Umschalt-Klick wählt einen Bereich, *Alle angezeigten auswählen* wählt alles, was der aktive Filter zeigt), dann unten *Entfernen* klicken oder die Entf-Taste drücken. *Rückgängig* holt entfernte Einträge zurück.
+7. **Reihenfolge** – einen Eintrag am Griff ⠿ ziehen, um die Reihenfolge beim Hinzufügen zu ändern. Ist der Griff angewählt, verschieben auch die Pfeiltasten, Bild ↑/↓ sowie Pos1/Ende den Eintrag. *Ursprüngliche Reihenfolge wiederherstellen* macht alle Verschiebungen rückgängig.
+8. **Importieren** – zeigt eine Zusammenfassung; hinzugefügt wird erst nach Bestätigung
+
+Tipp: Um alles loszuwerden, was nicht gefunden wurde, den Filter *Unsicher / nicht gefunden* wählen, *Alle angezeigten auswählen* anhaken und *Entfernen* klicken.
 
 ### Kommandozeile
 
@@ -120,14 +124,20 @@ Unsaubere Zeilen werden vor der Suche bereinigt: kaputte Umlaute wie `Ã¤` werd
 
 ## Anfrage-Limits von Spotify
 
-Spotify begrenzt die Zahl der Anfragen für Apps im Development Mode. Das Limit teilen sich alle Development-Mode-Apps deines Spotify-Entwicklerkontos; Größe und Rücksetzzeitpunkt veröffentlicht Spotify nicht. PlaylistPusher sucht deshalb einen Eintrag nach dem anderen, verteilt die Anfragen und braucht nur ein bis zwei Suchen pro Eintrag.
+Spotify begrenzt die Zahl der Anfragen für Apps im Development Mode. Das Limit teilen sich alle Development-Mode-Apps deines Spotify-Entwicklerkontos; Größe und Rücksetzzeitpunkt veröffentlicht Spotify nicht. PlaylistPusher sucht deshalb einen Eintrag nach dem anderen, verteilt die Anfragen und braucht eine Suche pro Eintrag – zwei, wenn die erste nichts Passendes findet.
+
+> **Richtwert aus Tests:** Nach etwa **1.000 Anfragen innerhalb von 24 Stunden** war das Kontingent aufgebraucht, danach war die App etwa 24 Stunden gesperrt. Je nachdem, wie viele Einträge schon mit der ersten Suche gefunden werden, reicht das für etwa 500–1.000 Listeneinträge pro Tag. Das ist keine offizielle Angabe von Spotify und kann sich jederzeit ändern.
 
 - **Suche abbrechen** stoppt die Suche sofort; die bisherigen Treffer bleiben erhalten.
 - Ist das Limit von Spotify erreicht, stoppt die Suche von selbst und behält ihre Treffer.
 - **Suche fortsetzen** macht jederzeit mit den übrigen Einträgen weiter (und wiederholt fehlgeschlagene Suchen).
-- Die Prüfansicht zeigt, wie viele Anfragen gesendet wurden – seit dem Laden der Seite, in der letzten Stunde und in den letzten 24 Stunden – und wann Spotify das Kontingent zuletzt als aufgebraucht gemeldet hat. So lassen sich die Limits für das eigene Konto herausfinden.
+- Unter *Titel suchen* schätzt PlaylistPusher, wie viele Anfragen die Liste braucht, und warnt, wenn das mehr sein könnte, als vom Richtwert noch übrig ist.
+- **Spotify-Anfragen (24 h): … / ~1.000** oben rechts zeigt, wie viele Anfragen in den letzten 24 Stunden gesendet wurden (ab 80 % des Richtwerts gelb, ab 100 % rot). Ein Klick darauf öffnet die Übersicht: Anfragen seit dem Laden der Seite, in der letzten Stunde und in den letzten 24 Stunden, Anfragen pro Stunde der letzten 48 Stunden sowie jeder Zeitpunkt, an dem Spotify das Kontingent als aufgebraucht gemeldet hat – mit der Zahl der Anfragen in den 24 Stunden davor. *Statistik zurücksetzen* beginnt eine neue Messung.
 
-Tipp für lange Listen: als Ziel *+ Neue Playlist erstellen* wählen. Das Lesen einer bestehenden Playlist (für die Duplikatprüfung) kostet eine Anfrage pro 50 Titel.
+Tipps für lange Listen:
+
+- Als Ziel *+ Neue Playlist erstellen* wählen. Das Lesen einer bestehenden Playlist (für die Duplikatprüfung) kostet eine Anfrage pro 50 Titel.
+- In Teilen importieren: die Suche nach einigen hundert Einträgen abbrechen, die bisherigen Treffer importieren, dann fortsetzen. Der Import braucht nur eine Anfrage pro 100 Titel, ist aber nicht mehr möglich, sobald das Kontingent aufgebraucht ist.
 
 ## Fehlerbehebung
 
