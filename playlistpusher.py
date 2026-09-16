@@ -46,9 +46,13 @@ def build_handler(port, preload):
         def do_GET(self):
             host = (self.headers.get("Host") or "").rsplit(":", 1)[0]
             if host != "127.0.0.1":
-                # Spotify only accepts 127.0.0.1 as a loopback redirect address (not localhost)
+                # Spotify only accepts 127.0.0.1 as a loopback redirect address (not localhost).
+                # Line breaks are removed from the path, so it cannot inject response headers.
+                path = self.path.replace("\r", "").replace("\n", "")
+                if not path.startswith("/"):
+                    path = "/"
                 self.send_response(302)
-                self.send_header("Location", f"http://127.0.0.1:{port}{self.path}")
+                self.send_header("Location", f"http://127.0.0.1:{port}{path}")
                 self.end_headers()
                 return
 
