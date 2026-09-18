@@ -24,6 +24,7 @@ Die Oberfläche gibt es auf **Englisch und Deutsch** (Umschalter oben rechts).
 - **Zuverlässiger Abgleich:** unterschiedliche Schreibweisen und Umlaute, „feat.“-Angaben, vertauschte Reihenfolge, Radio Edit oder Albumversion; Karaoke-, Tribute- und nicht gewünschte Live-Versionen werden abgewertet
 - **Duplikaterkennung** innerhalb der Liste und gegenüber der Ziel-Playlist
 - **Schnell aufräumen:** Einträge einzeln oder mehrere auf einmal entfernen – mit Rückgängig
+- **Liste der fehlenden Titel:** die nicht importierten Einträge als Textdatei speichern – um sie später zu suchen oder erneut zu laden
 - **Eigene Reihenfolge:** Einträge per Drag & Drop in die Reihenfolge bringen, in der sie hinzugefügt werden
 - **Hält Spotifys Limits ein:** verteilte Anfragen, Abbrechen und Fortsetzen jederzeit, Übersicht über alle gesendeten Anfragen
 - **Nichts geht verloren:** Der Prüfstand wird im Browser gespeichert und nach Neuladen oder erneuter Anmeldung wiederhergestellt
@@ -83,6 +84,7 @@ Das Konsolenfenster muss offen bleiben, solange PlaylistPusher benutzt wird; bee
 6. **Entfernen** (Papierkorb-Symbol) – entfernt einen Eintrag aus der Liste. Für mehrere Einträge deren Kästchen anhaken (Umschalt-Klick wählt einen Bereich, *Alle angezeigten auswählen* wählt alles, was der aktive Filter zeigt), dann unten *Entfernen* klicken oder die Entf-Taste drücken. *Rückgängig* holt entfernte Einträge zurück.
 7. **Reihenfolge** – einen Eintrag am Griff ⠿ ziehen, um die Reihenfolge beim Hinzufügen zu ändern. Ist der Griff angewählt, verschieben auch die Pfeiltasten, Bild ↑/↓ sowie Pos1/Ende den Eintrag. *Ursprüngliche Reihenfolge wiederherstellen* macht alle Verschiebungen rückgängig.
 8. **Importieren** – zeigt eine Zusammenfassung; hinzugefügt wird erst nach Bestätigung
+9. **Nicht importierte speichern** – *Nicht importierte speichern (n)* in der Prüfansicht oder *Als Textdatei speichern* nach dem Import speichert alle Einträge, die nicht in der Playlist sind (nicht gefunden, unsicher oder nicht gesucht), als Textdatei: ein „Interpret - Titel“ pro Zeile, jeder Titel nur einmal. Die Datei lässt sich wieder in PlaylistPusher laden.
 
 Tipp: Um alles loszuwerden, was nicht gefunden wurde, den Filter *Unsicher / nicht gefunden* wählen, *Alle angezeigten auswählen* anhaken und *Entfernen* klicken.
 

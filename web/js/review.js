@@ -2,8 +2,9 @@
 // select and remove entries, and change the order by drag and drop or keyboard.
 import { SCORE_SURE, SCORE_ACCEPT, scoreTrack } from './match.js';
 import { parseSpotifyTrackId } from './parse.js';
+import { entriesText, exportFileName } from './export.js';
 import { t, getLanguage } from './i18n.js';
-import { $, $$, esc, formatDuration } from './ui.js';
+import { $, $$, esc, formatDuration, downloadText } from './ui.js';
 
 let ctx = null; // { state, save, notice, onError }
 const elements = new Map(); // row.id -> <li>
@@ -73,6 +74,23 @@ function computeDuplicates() {
 
 const willImport = (row) => !!(row.include && !row.imported && selectedTrack(row) && !(ctx.state.session.skipDuplicates && row.dup));
 export const importRows = () => ctx.state.session.rows.filter(willImport);
+// Not in the playlist and not going to be added: not found, uncertain, not searched or failed.
+// Skipped duplicates do not count, their track is in the playlist anyway.
+const notInPlaylist = (row) => !row.imported && !willImport(row) && !(row.include && selectedTrack(row) && row.dup);
+
+export function missingRows() {
+  computeDuplicates();
+  return ctx.state.session.rows.filter(notInPlaylist);
+}
+
+/** Saves the entries that are not imported as a text file, one "Artist - Title" per line. */
+export function exportMissing() {
+  const { text, count } = entriesText(missingRows().map((r) => r.entry));
+  if (!count) return;
+  const file = exportFileName(ctx.state.session.target.name, t('export.fileSuffix'));
+  downloadText(file, text);
+  ctx.notice(t('export.saved', { n: count, file }), { type: 'ok' });
+}
 
 export function initReview(context) {
   ctx = context;
@@ -94,6 +112,7 @@ export function initReview(context) {
   document.addEventListener('keydown', onDeleteKey);
 
   $('#btn-restore-order').addEventListener('click', restoreOrder);
+  $('#btn-export-missing').addEventListener('click', exportMissing);
   $('#select-all').addEventListener('change', (e) => {
     for (const row of selectableRows()) {
       if (e.target.checked) selected.add(row.id);
@@ -217,6 +236,11 @@ function updateSummary() {
 
   const sorted = session.rows.every((r, i) => i === 0 || session.rows[i - 1].id < r.id);
   $('#btn-restore-order').hidden = importing || sorted;
+
+  // Counted like in the file: the same title several times in the list is saved once
+  const missing = matching || importing ? 0 : entriesText(session.rows.filter(notInPlaylist).map((r) => r.entry)).count;
+  $('#btn-export-missing').hidden = missing === 0;
+  $('#export-missing-label').textContent = t('export.button', { n: missing });
 
   // Selection: "select all shown" checkbox and the bar with bulk actions
   const selectable = selectableRows();

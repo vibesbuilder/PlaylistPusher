@@ -110,6 +110,10 @@ const en = {
   'review.clearSelection': 'Clear selection',
   'review.removed': ({ n }) => `${n} ${plural(n, 'entry', 'entries')} removed from the list.`,
   'review.undo': 'Undo',
+  'export.button': ({ n }) => `Save not imported (${n})`,
+  'export.buttonTitle': 'Save the entries that are not imported as a text file – one “Artist - Title” per line, e.g. to search for them later or to load them again.',
+  'export.fileSuffix': 'not imported',
+  'export.saved': ({ n, file }) => `${n} ${plural(n, 'title was', 'titles were')} saved as “${file}” (see the downloads of your browser).`,
 
   'row.select': 'Select entry {n}',
   'row.change': 'Change',
@@ -173,6 +177,8 @@ const en = {
   'done.added': ({ name, count }) => `${count} ${plural(count, 'track was', 'tracks were')} added to the playlist “${name}”.`,
   'done.open': 'Open playlist in Spotify',
   'done.new': 'Import another list',
+  'done.missing': ({ n }) => `${n} ${plural(n, 'title', 'titles')} from the list ${plural(n, 'was', 'were')} not imported (not found, uncertain or not searched).`,
+  'done.export': 'Save as text file',
 
   'usage.button': ({ day, guide }) => `Spotify requests (24 h): ${day} / ~${guide}`,
   'usage.title': 'Spotify requests',
@@ -330,6 +336,10 @@ const de = {
   'review.clearSelection': 'Auswahl aufheben',
   'review.removed': ({ n }) => `${n === 1 ? '1 Eintrag' : `${n} Einträge`} aus der Liste entfernt.`,
   'review.undo': 'Rückgängig',
+  'export.button': ({ n }) => `Nicht importierte speichern (${n})`,
+  'export.buttonTitle': 'Die Einträge, die nicht importiert werden, als Textdatei speichern – ein „Interpret - Titel“ pro Zeile, z. B. um sie später zu suchen oder erneut zu laden.',
+  'export.fileSuffix': 'nicht importiert',
+  'export.saved': ({ n, file }) => `${n} Titel als „${file}“ gespeichert (siehe Downloads des Browsers).`,
 
   'row.select': 'Eintrag {n} auswählen',
   'row.change': 'Ändern',
@@ -393,6 +403,8 @@ const de = {
   'done.added': ({ name, count }) => `${count} Titel ${plural(count, 'wurde', 'wurden')} zur Playlist „${name}“ hinzugefügt.`,
   'done.open': 'Playlist in Spotify öffnen',
   'done.new': 'Neue Liste importieren',
+  'done.missing': ({ n }) => `${n} Titel aus der Liste ${plural(n, 'wurde', 'wurden')} nicht importiert (nicht gefunden, unsicher oder nicht gesucht).`,
+  'done.export': 'Als Textdatei speichern',
 
   'usage.button': ({ day, guide }) => `Spotify-Anfragen (24 h): ${day} / ~${guide}`,
   'usage.title': 'Spotify-Anfragen',

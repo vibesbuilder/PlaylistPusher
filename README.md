@@ -24,6 +24,7 @@ The interface is available in **English and German** (switch in the top right co
 - **Reliable matching:** alternative spellings and umlauts, "feat." credits, swapped artist/title order, radio edit vs. album version; karaoke, tribute and unrequested live versions are ranked down
 - **Duplicate detection** within the list and against the target playlist
 - **Quick clean-up:** remove entries one by one or several at once – with undo
+- **List of what is missing:** save the entries that were not imported as a text file – to search for them later or to load them again
 - **Your order:** drag and drop entries to decide in which order they are added
 - **Respects Spotify's limits:** paced requests, cancel and resume at any time, overview of all requests sent
 - **Nothing gets lost:** your review is saved in the browser and restored after a reload or a new login
@@ -83,6 +84,7 @@ Keep the console window open while you use PlaylistPusher; press Ctrl+C or close
 6. **Remove** (trash icon) – removes an entry from the list. For several entries, tick their checkboxes (Shift-click selects a range, *Select all shown* selects everything the current filter shows), then click *Remove* at the bottom or press the Delete key. *Undo* brings removed entries back.
 7. **Order** – drag an entry by its handle ⠿ to change the order in which the tracks are added. With the handle selected, the arrow keys, Page Up/Down and Home/End move the entry as well. *Restore original order* undoes all moves.
 8. **Import** – shows a summary; tracks are added only after you confirm
+9. **Save not imported** – *Save not imported (n)* in the review screen, or *Save as text file* after the import, saves every entry that is not in the playlist (not found, uncertain or not searched) as a text file: one “Artist - Title” per line, each title only once. The file can be loaded into PlaylistPusher again.
 
 Tip: to get rid of everything that was not found, choose the filter *Uncertain / not found*, tick *Select all shown* and click *Remove*.
 
@@ -171,11 +173,12 @@ web/js/app.js          flow: setup, login, list, matching, import
 web/js/review.js       review screen: changing, removing and reordering entries
 web/js/match.js        search strategy and scoring
 web/js/parse.js        list parser
+web/js/export.js       text export of the entries that are not imported
 web/js/spotify.js      Spotify Web API client (PKCE, pacing, retries, request statistics)
 web/js/usage.js        overview of the requests sent to Spotify
 web/js/i18n.js         English and German texts
 web/js/demo.js         demo catalog
-tests/                 unit tests for parser and matching
+tests/                 unit tests for parser, matching and export
 ```
 
 Run the tests with Node.js 20 or newer:

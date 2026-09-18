@@ -253,6 +253,11 @@ button.danger:hover:not(:disabled) { color: var(--none); border-color: var(--non
 .bulk-count { font-weight: 600; }
 .pick-hint { margin: 0 0 6px; }
 
+/* Saving the entries that are not imported */
+.review-tools .export-btn { margin-left: auto; }
+.done-missing { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--hover); }
+.done-missing p { margin: 0; flex: 1 1 260px; }
+
 /* Overview of the Spotify requests */
 .usage-link { font-variant-numeric: tabular-nums; }
 .usage-link.warn, #budget-hint.warn { color: var(--check); }

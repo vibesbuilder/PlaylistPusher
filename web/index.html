@@ -145,6 +145,10 @@
         <div class="review-tools">
           <label class="check"><input type="checkbox" id="select-all"> <span data-i18n="review.selectAll"></span></label>
           <p class="hint order-hint"><span data-i18n="review.dragHint"></span> <button type="button" class="link" id="btn-restore-order" data-i18n="review.restoreOrder" hidden></button></p>
+          <button type="button" class="small with-icon export-btn" id="btn-export-missing" data-i18n-title="export.buttonTitle" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+            <span id="export-missing-label"></span>
+          </button>
         </div>
       </div>
 
@@ -168,6 +172,13 @@
     <section id="view-done" class="card narrow" hidden>
       <h1 data-i18n="done.title"></h1>
       <p id="done-text"></p>
+      <div id="done-missing" class="done-missing" hidden>
+        <p id="done-missing-text"></p>
+        <button type="button" class="with-icon" id="btn-done-export">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+          <span data-i18n="done.export"></span>
+        </button>
+      </div>
       <div class="row">
         <a class="button primary" id="done-open" target="_blank" rel="noopener" data-i18n="done.open"></a>
         <button id="btn-new" data-i18n="done.new"></button>

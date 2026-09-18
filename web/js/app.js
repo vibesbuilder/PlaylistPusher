@@ -3,7 +3,8 @@ import { parseList, decodeBytes } from './parse.js';
 import { findCandidates, SCORE_ACCEPT } from './match.js';
 import { SpotifyClient, AuthError, startLogin, completeLogin, hasSession, logout, redirectUri } from './spotify.js';
 import { DemoClient, DEMO_LIST, DEMO_TARGET } from './demo.js';
-import { initReview, renderAll, refresh, touch, slimTrack, selectedTrack, importRows, rowClass } from './review.js';
+import { initReview, renderAll, refresh, touch, slimTrack, selectedTrack, importRows, rowClass, missingRows, exportMissing } from './review.js';
+import { entriesText } from './export.js';
 import { t, translatePage, setLanguage } from './i18n.js';
 import { $, $$, debounce, showView, notice, initNotice } from './ui.js';
 import './usage.js';
@@ -568,6 +569,7 @@ function bindReview() {
   $('#btn-resume').addEventListener('click', resumeMatching);
   $('#btn-import').addEventListener('click', confirmImport);
   $('#btn-new').addEventListener('click', resetToInput);
+  $('#btn-done-export').addEventListener('click', exportMissing);
   $('#review-playlist').addEventListener('change', onReviewTargetChange);
   $('#review-new-name').addEventListener('input', (e) => {
     state.session.target.name = e.target.value.trim();
@@ -704,6 +706,9 @@ function renderDone() {
   $('#done-text').textContent = t(s.target.created ? 'done.created' : 'done.added', params);
   $('#done-open').hidden = state.demo;
   $('#done-open').href = `https://open.spotify.com/playlist/${encodeURIComponent(s.target.id)}`;
+  const missing = entriesText(missingRows().map((r) => r.entry)).count;
+  $('#done-missing').hidden = missing === 0;
+  $('#done-missing-text').textContent = t('done.missing', { n: missing });
 }
 
 init();

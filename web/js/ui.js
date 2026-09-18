@@ -20,6 +20,16 @@ export function debounce(fn, ms) {
   };
 }
 
+/** Offers text as a file download (UTF-8). */
+export function downloadText(fileName, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  const link = Object.assign(document.createElement('a'), { href: url, download: fileName, hidden: true });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 const VIEWS = ['loading', 'setup', 'login', 'input', 'review', 'done'];
 
 export function showView(name) {
