@@ -4,6 +4,8 @@
 
 [English version](README.md)
 
+https://github.com/user-attachments/assets/06e58f06-8f96-4fa9-a19b-7c5df7da661f
+
 ![PlaylistPusher Prüfansicht](docs/screenshot.png)
 
 PlaylistPusher ist eine kleine lokale Web-App für Radiosender, DJs und alle, die Titellisten (Sendeprotokolle, Setlists, CSV-Exporte) in eine Spotify-Playlist bringen wollen:
