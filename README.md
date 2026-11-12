@@ -6,8 +6,6 @@
 
 https://github.com/user-attachments/assets/06e58f06-8f96-4fa9-a19b-7c5df7da661f
 
-![PlaylistPusher review screen](docs/screenshot.png)
-
 PlaylistPusher is a small local web app for radio stations, DJs and anyone with track lists (playout logs, setlists, CSV exports) that should end up in a Spotify playlist:
 
 1. Paste a list or open a file, then choose the target playlist (or create a new one)
